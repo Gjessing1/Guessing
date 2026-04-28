@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    image: ghcr.io/gjessing1/guessing:latest
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

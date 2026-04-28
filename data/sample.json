@@ -1,0 +1,35 @@
+{
+  "title": "General Knowledge",
+  "questions": [
+    {
+      "text": "What is the capital of France?",
+      "options": ["London", "Berlin", "Paris", "Madrid"],
+      "correct": 2,
+      "timeLimit": 20
+    },
+    {
+      "text": "Which planet is closest to the Sun?",
+      "options": ["Venus", "Earth", "Mars", "Mercury"],
+      "correct": 3,
+      "timeLimit": 20
+    },
+    {
+      "text": "What is 7 × 8?",
+      "options": ["54", "56", "58", "64"],
+      "correct": 1,
+      "timeLimit": 15
+    },
+    {
+      "text": "Who wrote Romeo and Juliet?",
+      "options": ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+      "correct": 1,
+      "timeLimit": 20
+    },
+    {
+      "text": "What is the largest ocean on Earth?",
+      "options": ["Atlantic", "Indian", "Arctic", "Pacific"],
+      "correct": 3,
+      "timeLimit": 20
+    }
+  ]
+}

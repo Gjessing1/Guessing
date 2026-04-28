@@ -1,0 +1,6 @@
+# Replace with your domain. Caddy handles HTTPS automatically via Let's Encrypt.
+# For local testing without a domain, replace the domain with ":80"
+
+yourdomain.com {
+    reverse_proxy app:3000
+}

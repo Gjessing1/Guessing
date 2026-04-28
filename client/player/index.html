@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guessing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+
+  <!-- Screen 1: PIN Entry -->
+  <div id="screen-pin" class="min-h-screen flex flex-col items-center justify-center px-6">
+    <h1 class="text-5xl font-black mb-2 tracking-tight">Guessing</h1>
+    <p class="text-gray-400 mb-10">Enter the game PIN to join</p>
+    <input id="pin-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+      placeholder="000000" autocomplete="off"
+      class="w-full max-w-xs text-center text-5xl font-bold tracking-[0.4em] bg-gray-800 text-white rounded-2xl p-4 border-2 border-gray-700 focus:border-indigo-500 outline-none mb-3">
+    <p id="pin-error" class="text-red-400 text-sm mb-4 h-5"></p>
+    <button id="pin-btn" class="w-full max-w-xs bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-4 rounded-2xl transition-colors">
+      Join
+    </button>
+  </div>
+
+  <!-- Screen 2: Nickname + Avatar -->
+  <div id="screen-avatar" class="hidden min-h-screen flex flex-col items-center px-6 py-10">
+    <h2 class="text-3xl font-black mb-6">Pick your look</h2>
+    <div id="avatar-preview" class="w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-8 shadow-lg transition-all duration-200"></div>
+    <input id="nickname-input" type="text" maxlength="20" placeholder="Your nickname" autocomplete="off"
+      class="w-full max-w-sm text-center text-xl bg-gray-800 text-white rounded-xl p-3 border-2 border-gray-700 focus:border-indigo-500 outline-none mb-8">
+    <p class="text-gray-400 text-sm mb-3 self-start w-full max-w-sm">Choose your emoji</p>
+    <div id="emoji-grid" class="grid grid-cols-5 gap-2 w-full max-w-sm mb-8"></div>
+    <p class="text-gray-400 text-sm mb-3 self-start w-full max-w-sm">Choose your color</p>
+    <div id="color-grid" class="flex gap-4 flex-wrap mb-8"></div>
+    <p id="avatar-error" class="text-red-400 text-sm mb-4 h-5"></p>
+    <button id="join-btn" class="w-full max-w-sm bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-4 rounded-2xl transition-colors">
+      Enter Game
+    </button>
+  </div>
+
+  <!-- Screen 3: Lobby -->
+  <div id="screen-lobby" class="hidden min-h-screen flex flex-col items-center justify-center px-6">
+    <div id="lobby-avatar" class="w-28 h-28 rounded-full flex items-center justify-center text-6xl mb-5 shadow-lg"></div>
+    <p id="lobby-nickname" class="text-2xl font-bold mb-1"></p>
+    <p class="text-gray-400 mb-8">You're in!</p>
+    <p id="player-count" class="text-gray-500 text-sm mb-10">Connecting…</p>
+    <div class="flex items-center gap-2 text-gray-400">
+      <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0ms]"></span>
+      <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:100ms]"></span>
+      <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:200ms]"></span>
+      <span class="ml-2">Waiting for host to start…</span>
+    </div>
+  </div>
+
+  <!-- Screen 4: Get Ready -->
+  <div id="screen-ready" class="hidden min-h-screen flex flex-col items-center justify-center bg-indigo-900">
+    <div class="text-8xl mb-6 animate-bounce">🎯</div>
+    <p class="text-4xl font-black">Get Ready!</p>
+    <p class="text-indigo-300 mt-3 text-lg">Question coming up…</p>
+  </div>
+
+  <!-- Screen 5: Question -->
+  <div id="screen-question" class="hidden min-h-screen flex flex-col bg-gray-900">
+    <div class="w-full bg-gray-800 h-2">
+      <div id="q-timer-bar" class="h-2 bg-indigo-500" style="width:100%;transition:none"></div>
+    </div>
+    <div class="flex justify-between items-center px-4 py-2 text-sm text-gray-400">
+      <span id="q-number">Question 1 of 5</span>
+      <span id="q-timer-display" class="text-white font-black text-2xl">20</span>
+    </div>
+    <div class="flex-1 flex items-center justify-center px-6 py-2">
+      <p id="q-text" class="text-white text-2xl font-bold text-center leading-snug"></p>
+    </div>
+    <div id="q-options" class="grid grid-cols-2 gap-3 p-4 pb-10"></div>
+  </div>
+
+  <!-- Screen 6: Answered (waiting for results) -->
+  <div id="screen-answered" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6">
+    <div class="text-7xl mb-6">⏳</div>
+    <p class="text-2xl font-bold mb-2">Answer locked in!</p>
+    <p class="text-gray-400">Waiting for host to show results…</p>
+  </div>
+
+  <!-- Screen 7: Question Result -->
+  <div id="screen-result" class="hidden min-h-screen flex flex-col items-center justify-center px-6">
+    <div id="result-icon" class="text-8xl mb-6"></div>
+    <p id="result-text" class="text-4xl font-black mb-3"></p>
+    <p id="result-answer" class="text-lg text-white opacity-75 mb-6"></p>
+    <p id="result-delta" class="text-3xl font-black text-yellow-300 mb-1"></p>
+    <p id="result-total" class="text-gray-300 text-sm mb-8"></p>
+    <p class="text-sm opacity-40">Waiting for next question…</p>
+  </div>
+
+  <!-- Screen 8: Podium -->
+  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6">
+    <div class="text-6xl mb-4">🏆</div>
+    <h2 class="text-3xl font-black mb-3">Game Over!</h2>
+    <p id="podium-score" class="text-gray-300 text-xl mb-2"></p>
+    <p id="podium-rank" class="text-gray-500 text-sm"></p>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
