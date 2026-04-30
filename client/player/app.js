@@ -55,6 +55,10 @@ document.getElementById('mute-btn').addEventListener('click', () => {
   document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
 });
 
+document.getElementById('change-avatar-btn').addEventListener('click', () => {
+  showScreen('avatar');
+});
+
 document.querySelectorAll('.reaction-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     if (gamePin) socket.emit('REACTION_SEND', { pin: gamePin, emoji: btn.dataset.emoji });

@@ -24,6 +24,11 @@ const AudioManager = (() => {
     stopAll() {
       Object.values(sounds).forEach(a => { a.pause(); a.currentTime = 0; });
     },
+    resume(name) {
+      const a = sounds[name];
+      if (!a || muted) return;
+      if (a.paused) a.play().catch(() => {});
+    },
     toggleMute() {
       muted = !muted;
       if (muted) this.stopAll();

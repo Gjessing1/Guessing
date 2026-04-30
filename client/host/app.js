@@ -79,7 +79,11 @@ function showScreen(name) {
 
 function updateStartBtn() {
   const hasPlayers = document.getElementById('player-grid').children.length > 0;
-  document.getElementById('start-btn').disabled = !hasPlayers || !selectedQuizId;
+  const btn = document.getElementById('start-btn');
+  if (!selectedQuizId && !hasPlayers) { btn.textContent = 'Select a quiz first'; btn.disabled = true; }
+  else if (!selectedQuizId)           { btn.textContent = 'Select a quiz first'; btn.disabled = true; }
+  else if (!hasPlayers)               { btn.textContent = 'Waiting for players…'; btn.disabled = true; }
+  else                                { btn.textContent = 'Start Game';           btn.disabled = false; }
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
@@ -111,6 +115,9 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 // ── Game state changes ────────────────────────────────────────────────────────
+
+// Browsers block autoplay until user interaction — resume lobby music on first click
+document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
 
 socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
   if (status === 'lobby') {

@@ -7,7 +7,8 @@ services:
       - PORT=3000
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     volumes:
-      - guessing_data:/app/data   # or bind: /your/path/on/host:/app/data
+      - guessing_data:/app/data                  # quiz JSON store
+      - guessing_images:/app/public/assets/images # uploaded question images
     restart: unless-stopped
 
   caddy:
@@ -28,3 +29,4 @@ volumes:
   caddy_data:
   caddy_config:
   guessing_data:
+  guessing_images:

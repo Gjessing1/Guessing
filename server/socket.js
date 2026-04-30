@@ -17,8 +17,13 @@ function registerSocketHandlers(io) {
       if (!room) return socket.emit('ERROR', { message: 'Room not found' });
       if (room.status !== 'lobby') return socket.emit('ERROR', { message: 'Game already in progress' });
 
-      rm.addPlayer(pin, socket.id, nickname, emoji, color);
-      socket.join(pin);
+      const existing = room.players.get(socket.id);
+      if (existing) {
+        room.players.set(socket.id, { ...existing, nickname, emoji, color });
+      } else {
+        rm.addPlayer(pin, socket.id, nickname, emoji, color);
+        socket.join(pin);
+      }
 
       io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(room));
       socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
