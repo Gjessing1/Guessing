@@ -65,6 +65,10 @@ async function loadQuizList() {
   showScreen('list');
 }
 
+function formatTime(seconds) {
+  return seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
+}
+
 function renderQuizList(quizzes) {
   const list = document.getElementById('quiz-list');
   const empty = document.getElementById('list-empty');
@@ -76,15 +80,17 @@ function renderQuizList(quizzes) {
   }
   empty.classList.add('hidden');
 
-  quizzes.forEach(({ id, title, questionCount }) => {
+  quizzes.forEach(({ id, title, questionCount, totalTime }) => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between bg-gray-800 rounded-2xl px-6 py-4';
     row.innerHTML = `
       <div>
         <p class="font-bold text-lg">${escapeHtml(title)}</p>
-        <p class="text-gray-400 text-sm">${questionCount} question${questionCount !== 1 ? 's' : ''}</p>
+        <p class="text-gray-400 text-sm">${questionCount} question${questionCount !== 1 ? 's' : ''} &middot; ${formatTime(totalTime || 0)}</p>
       </div>
       <div class="flex gap-2">
+        <button data-action="duplicate" data-id="${id}"
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">Duplicate</button>
         <button data-action="export" data-id="${id}"
           class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">Export</button>
         <button data-action="edit" data-id="${id}"
@@ -100,10 +106,16 @@ function renderQuizList(quizzes) {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
-    if (action === 'edit')   openEditor(id);
-    if (action === 'export') exportQuiz(id);
-    if (action === 'delete') deleteQuiz(id);
+    if (action === 'edit')      openEditor(id);
+    if (action === 'export')    exportQuiz(id);
+    if (action === 'delete')    deleteQuiz(id);
+    if (action === 'duplicate') duplicateQuiz(id);
   });
+}
+
+async function duplicateQuiz(id) {
+  await adminFetch(`/api/quizzes/${id}/duplicate`, { method: 'POST' });
+  loadQuizList();
 }
 
 document.getElementById('new-quiz-btn').addEventListener('click', createQuiz);
@@ -193,14 +205,25 @@ function renderQuestions() {
     return;
   }
 
+  const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F' };
+
   currentQuiz.questions.forEach((q, i) => {
+    const isFirst = i === 0;
+    const isLast  = i === currentQuiz.questions.length - 1;
     const row = document.createElement('div');
-    row.className = 'flex items-center gap-4 bg-gray-800 rounded-2xl px-5 py-4';
+    row.className = 'flex items-center gap-3 bg-gray-800 rounded-2xl px-4 py-3';
     row.innerHTML = `
-      <span class="text-gray-500 font-black w-6 text-center flex-shrink-0">${i + 1}</span>
+      <div class="flex flex-col gap-1 flex-shrink-0">
+        <button data-action="up" data-idx="${i}"
+          class="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none px-1" ${isFirst ? 'disabled' : ''}>▲</button>
+        <span class="text-gray-500 font-black text-center text-sm">${i + 1}</span>
+        <button data-action="down" data-idx="${i}"
+          class="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none px-1" ${isLast ? 'disabled' : ''}>▼</button>
+      </div>
       <div class="flex-1 min-w-0">
         <p class="font-semibold truncate">${escapeHtml(q.text)}</p>
         <p class="text-gray-400 text-xs mt-0.5">
+          ${TYPE_BADGE[q.type] ? `<span class="font-bold text-yellow-400">${TYPE_BADGE[q.type]}</span> &middot; ` : ''}
           Correct: <span class="text-green-400 font-bold">${OPTION_LABELS[q.correct]}: ${escapeHtml(q.options[q.correct])}</span>
           &nbsp;·&nbsp;${q.timeLimit}s
           ${q.image ? '&nbsp;·&nbsp;<span class="text-blue-400">📷</span>' : ''}
@@ -222,6 +245,16 @@ function renderQuestions() {
     const idx = parseInt(btn.dataset.idx);
     if (btn.dataset.action === 'edit')   openQuestionModal(idx);
     if (btn.dataset.action === 'delete') deleteQuestion(idx);
+    if (btn.dataset.action === 'up' && idx > 0) {
+      [currentQuiz.questions[idx - 1], currentQuiz.questions[idx]] =
+        [currentQuiz.questions[idx], currentQuiz.questions[idx - 1]];
+      renderQuestions();
+    }
+    if (btn.dataset.action === 'down' && idx < currentQuiz.questions.length - 1) {
+      [currentQuiz.questions[idx], currentQuiz.questions[idx + 1]] =
+        [currentQuiz.questions[idx + 1], currentQuiz.questions[idx]];
+      renderQuestions();
+    }
   });
 }
 
@@ -235,12 +268,36 @@ document.getElementById('add-question-btn').addEventListener('click', () => open
 
 // ── Question Modal ────────────────────────────────────────────────────────────
 
+function applyQuestionType(type) {
+  const isTF = type === 'truefalse';
+  document.getElementById('opt-cd-row').style.display = isTF ? 'none' : 'contents';
+  document.getElementById('correct-cd').style.display = isTF ? 'none' : 'contents';
+  if (isTF) {
+    document.getElementById('q-opt-a').value = 'True';
+    document.getElementById('q-opt-b').value = 'False';
+    document.getElementById('q-opt-a').readOnly = true;
+    document.getElementById('q-opt-b').readOnly = true;
+    // Clamp correct to 0 or 1
+    const cur = parseInt(document.querySelector('input[name="q-correct"]:checked')?.value ?? 0);
+    document.querySelector(`input[name="q-correct"][value="${cur > 1 ? 0 : cur}"]`).checked = true;
+  } else {
+    document.getElementById('q-opt-a').readOnly = false;
+    document.getElementById('q-opt-b').readOnly = false;
+  }
+}
+
+document.querySelectorAll('input[name="q-type"]').forEach(r => {
+  r.addEventListener('change', () => applyQuestionType(r.value));
+});
+
 function openQuestionModal(idx) {
   editingIndex = idx;
   pendingImageUrl = null;
   const q = idx !== null ? currentQuiz.questions[idx] : null;
+  const type = q?.type || 'multiple';
 
   document.getElementById('modal-title').textContent = idx !== null ? 'Edit Question' : 'Add Question';
+  document.querySelector(`input[name="q-type"][value="${type}"]`).checked = true;
   document.getElementById('q-text').value = q?.text || '';
   document.getElementById('q-opt-a').value = q?.options[0] || '';
   document.getElementById('q-opt-b').value = q?.options[1] || '';
@@ -250,6 +307,7 @@ function openQuestionModal(idx) {
   document.getElementById('q-time').value = q?.timeLimit ?? 20;
   document.getElementById('modal-error').textContent = '';
   document.getElementById('q-image-input').value = '';
+  applyQuestionType(type);
 
   const preview = document.getElementById('q-image-preview');
   const removeBtn = document.getElementById('q-image-remove');
@@ -309,21 +367,27 @@ document.getElementById('q-image-input').addEventListener('change', async (e) =>
 });
 
 function saveQuestion() {
-  const text = document.getElementById('q-text').value.trim();
-  const options = [
-    document.getElementById('q-opt-a').value.trim(),
-    document.getElementById('q-opt-b').value.trim(),
-    document.getElementById('q-opt-c').value.trim(),
-    document.getElementById('q-opt-d').value.trim(),
-  ];
+  const type    = document.querySelector('input[name="q-type"]:checked').value;
+  const text    = document.getElementById('q-text').value.trim();
   const correct = parseInt(document.querySelector('input[name="q-correct"]:checked').value);
   const timeLimit = Math.max(5, Math.min(120, parseInt(document.getElementById('q-time').value) || 20));
   const errEl = document.getElementById('modal-error');
 
+  const isTF = type === 'truefalse';
+  const options = isTF
+    ? ['True', 'False']
+    : [
+        document.getElementById('q-opt-a').value.trim(),
+        document.getElementById('q-opt-b').value.trim(),
+        document.getElementById('q-opt-c').value.trim(),
+        document.getElementById('q-opt-d').value.trim(),
+      ];
+
   if (!text) { errEl.textContent = 'Enter question text'; return; }
-  if (options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
+  if (!isTF && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
 
   const q = { text, options, correct, timeLimit };
+  if (type !== 'multiple') q.type = type;
   if (pendingImageUrl) q.image = pendingImageUrl;
 
   if (editingIndex !== null) {

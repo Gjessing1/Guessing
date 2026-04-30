@@ -19,7 +19,10 @@ function write(data) {
 
 function list() {
   return read().quizzes.map(({ id, title, questions }) => ({
-    id, title, questionCount: questions.length,
+    id,
+    title,
+    questionCount: questions.length,
+    totalTime: questions.reduce((s, q) => s + (q.timeLimit || 20), 0),
   }));
 }
 

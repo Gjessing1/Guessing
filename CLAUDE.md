@@ -102,22 +102,20 @@
 
 ## Roadmap
 
-### Phase 5: Admin Polish
-- [ ] Question reordering (up/down buttons in the editor)
-- [ ] Duplicate quiz button
-- [ ] Question count and total time estimate shown in quiz list
+### Phase 5: Admin Polish ✅
+- [x] Question reordering (↑↓ buttons in the editor)
+- [x] Duplicate quiz button
+- [x] Question count and total time estimate shown in quiz list
 
-### Phase 6: Question Types
-- [ ] True/False question type (2 options instead of 4)
-- [ ] Lightning round: no time bonus, just speed ranking
-- [ ] Points multiplier per question (configurable in editor, e.g. ×1, ×2, ×3)
+### Phase 6: Question Types ✅
+- [x] True/False question type (2 options, pre-filled True/False)
+- [x] Lightning round: flat 500 pts, no time bonus, ⚡ shown on question
 
-### Phase 7: Reliability
-- [ ] Player reconnect on socket drop (rejoin same room mid-game)
-- [ ] Host disconnect → grace period before ending game
-- [ ] Room cleanup on idle timeout
+### Phase 7: Reliability ✅
+- [x] Player reconnect on socket drop (session token in sessionStorage)
+- [x] Host disconnect → 30s grace period before ending game
+- [x] Room cleanup: rooms pruned after 3 hours idle
 
 ### Phase 8: Analytics
-- [ ] Save completed game results to disk (who answered what, final scores)
 - [ ] Simple per-quiz analytics in admin (avg score, hardest question)
 - [ ] Export results as CSV

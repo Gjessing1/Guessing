@@ -143,13 +143,14 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
 
 // ── Question ──────────────────────────────────────────────────────────────────
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit, image }) => {
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit, image, type }) => {
   AudioManager.stop('tick-tock');
   AudioManager.play('game-start');
   currentQuestionNumber = questionNumber;
   totalQuestions = total;
 
-  document.getElementById('q-label').textContent = `Question ${questionNumber} of ${total}`;
+  document.getElementById('q-label').textContent =
+    `Question ${questionNumber} of ${total}${type === 'lightning' ? ' ⚡' : ''}`;
   document.getElementById('q-text').textContent = text;
 
   const img = document.getElementById('q-image');

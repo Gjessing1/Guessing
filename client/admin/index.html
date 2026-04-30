@@ -71,6 +71,13 @@
     <div class="bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
       <h2 id="modal-title" class="text-xl font-black mb-5">Add Question</h2>
 
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Question type</label>
+      <div class="flex gap-4 mb-4 text-sm">
+        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="multiple" class="accent-indigo-500"> Multiple choice</label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="truefalse" class="accent-indigo-500"> True / False</label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="lightning" class="accent-yellow-400"> ⚡ Lightning</label>
+      </div>
+
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Question text</label>
       <textarea id="q-text" rows="3" placeholder="Enter your question…"
         class="w-full bg-gray-700 rounded-xl p-3 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4 resize-none text-base"></textarea>
@@ -87,15 +94,17 @@
           <input id="q-opt-b" type="text" placeholder="Option B"
             class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
         </div>
-        <div class="flex items-center gap-2">
-          <span class="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-xs font-black flex-shrink-0">C</span>
-          <input id="q-opt-c" type="text" placeholder="Option C"
-            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-6 h-6 rounded bg-green-600 flex items-center justify-center text-xs font-black flex-shrink-0">D</span>
-          <input id="q-opt-d" type="text" placeholder="Option D"
-            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+        <div id="opt-cd-row" class="contents">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-xs font-black flex-shrink-0">C</span>
+            <input id="q-opt-c" type="text" placeholder="Option C"
+              class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded bg-green-600 flex items-center justify-center text-xs font-black flex-shrink-0">D</span>
+            <input id="q-opt-d" type="text" placeholder="Option D"
+              class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+          </div>
         </div>
       </div>
 
@@ -107,11 +116,13 @@
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="radio" name="q-correct" value="1" class="accent-blue-500"> B
         </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="radio" name="q-correct" value="2" class="accent-yellow-500"> C
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="radio" name="q-correct" value="3" class="accent-green-500"> D
+        <label id="correct-cd" class="contents">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="q-correct" value="2" class="accent-yellow-500"> C
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="q-correct" value="3" class="accent-green-500"> D
+          </label>
         </label>
       </div>
 

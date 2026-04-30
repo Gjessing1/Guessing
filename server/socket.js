@@ -1,10 +1,22 @@
 const rm = require('./game/roomManager');
 const quizStore = require('./quiz/quizStore');
 
+// Stale room cleanup — runs every 30 minutes
+setInterval(() => rm.pruneStaleRooms(), 30 * 60 * 1000);
+
+// pin → timeoutId for host disconnect grace period
+const hostGraceTimers = new Map();
+
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
 
     socket.on('HOST_REGISTER', ({ pin }) => {
+      // Cancel any pending grace-period shutdown for this room
+      if (hostGraceTimers.has(pin)) {
+        clearTimeout(hostGraceTimers.get(pin));
+        hostGraceTimers.delete(pin);
+      }
+
       const room = rm.getRoom(pin);
       if (!room) return socket.emit('ERROR', { message: 'Room not found' });
       room.hostSocketId = socket.id;
@@ -12,16 +24,41 @@ function registerSocketHandlers(io) {
       socket.emit('GAME_STATE_CHANGE', { status: room.status, pin });
     });
 
-    socket.on('ROOM_JOIN', ({ pin, nickname, emoji, color }) => {
+    socket.on('ROOM_JOIN', ({ pin, nickname, emoji, color, token }) => {
       const room = rm.getRoom(pin);
       if (!room) return socket.emit('ERROR', { message: 'Room not found' });
+
+      // Mid-game reconnect via session token
+      if (token && room.status === 'playing') {
+        const found = rm.findPlayerByToken(room, token);
+        if (found) {
+          rm.reconnectPlayer(room, found.socketId, socket.id, nickname, emoji, color);
+          socket.join(pin);
+          socket.emit('GAME_STATE_CHANGE', { status: 'playing' });
+          if (room.questionPhase === 'question') {
+            const q = room.quiz.questions[room.currentQuestionIndex];
+            const elapsed = Math.floor((Date.now() - room.questionStartTime) / 1000);
+            socket.emit('QUESTION_DATA', {
+              questionNumber: room.currentQuestionIndex + 1,
+              totalQuestions: room.quiz.questions.length,
+              text: q.text,
+              options: q.options,
+              timeLimit: Math.max(1, q.timeLimit - elapsed),
+              image: q.image || null,
+              type: q.type || 'multiple',
+            });
+          }
+          return;
+        }
+      }
+
       if (room.status !== 'lobby') return socket.emit('ERROR', { message: 'Game already in progress' });
 
       const existing = room.players.get(socket.id);
       if (existing) {
         room.players.set(socket.id, { ...existing, nickname, emoji, color });
       } else {
-        rm.addPlayer(pin, socket.id, nickname, emoji, color);
+        rm.addPlayer(pin, socket.id, nickname, emoji, color, token || null);
         socket.join(pin);
       }
 
@@ -67,6 +104,7 @@ function registerSocketHandlers(io) {
           options: q.options,
           timeLimit: q.timeLimit,
           image: q.image || null,
+          type: q.type || 'multiple',
         });
 
       } else if (room.questionPhase === 'question') {
@@ -90,8 +128,8 @@ function registerSocketHandlers(io) {
       const { alreadyAnswered } = rm.recordAnswer(pin, socket.id, answerIndex);
       if (alreadyAnswered) return;
 
-      const q       = room.quiz.questions[room.currentQuestionIndex];
-      const correct = answerIndex === q.correct;
+      const q        = room.quiz.questions[room.currentQuestionIndex];
+      const correct  = answerIndex === q.correct;
       const scoreDelta = correct ? rm.calcScore(room) : 0;
       if (correct) rm.applyScore(pin, socket.id, scoreDelta);
 
@@ -115,15 +153,24 @@ function registerSocketHandlers(io) {
     socket.on('disconnect', () => {
       const hostRoom = rm.getRoomByHostSocket(socket.id);
       if (hostRoom) {
-        io.to(hostRoom.pin).emit('GAME_STATE_CHANGE', { status: 'ended', reason: 'host_disconnected' });
-        rm.removeRoom(hostRoom.pin);
+        // 30-second grace period before ending the game
+        hostRoom.hostSocketId = null;
+        const timerId = setTimeout(() => {
+          io.to(hostRoom.pin).emit('GAME_STATE_CHANGE', { status: 'ended', reason: 'host_disconnected' });
+          rm.removeRoom(hostRoom.pin);
+          hostGraceTimers.delete(hostRoom.pin);
+        }, 30000);
+        hostGraceTimers.set(hostRoom.pin, timerId);
         return;
       }
 
       const playerRoom = rm.getRoomByPlayerSocket(socket.id);
       if (playerRoom) {
-        rm.removePlayer(socket.id);
-        io.to(playerRoom.pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(playerRoom));
+        if (playerRoom.status === 'lobby') {
+          rm.removePlayer(socket.id);
+          io.to(playerRoom.pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(playerRoom));
+        }
+        // Mid-game: keep player data so they can reconnect
       }
     });
   });

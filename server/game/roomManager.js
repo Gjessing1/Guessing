@@ -13,13 +13,15 @@ function createRoom() {
   rooms.set(pin, {
     pin,
     hostSocketId: null,
-    players: new Map(),       // socketId → { nickname, emoji, color, score }
+    players: new Map(),        // socketId → { nickname, emoji, color, score, token }
+    tokenIndex: new Map(),     // token → socketId  (for reconnect)
     status: 'lobby',
     quiz: null,
     currentQuestionIndex: -1,
-    questionPhase: null,      // 'question' | 'results' | null
+    questionPhase: null,       // 'question' | 'results' | null
     currentAnswers: new Map(), // socketId → answerIndex
     questionStartTime: null,
+    createdAt: Date.now(),
   });
   return rooms.get(pin);
 }
@@ -42,22 +44,49 @@ function getRoomByPlayerSocket(socketId) {
   return null;
 }
 
-function addPlayer(pin, socketId, nickname, emoji, color) {
+function addPlayer(pin, socketId, nickname, emoji, color, token = null) {
   const room = rooms.get(pin);
   if (!room) return null;
-  room.players.set(socketId, { nickname, emoji, color, score: 0 });
+  room.players.set(socketId, { nickname, emoji, color, score: 0, token });
+  if (token) room.tokenIndex.set(token, socketId);
   return room;
+}
+
+function findPlayerByToken(room, token) {
+  if (!token || !room.tokenIndex.has(token)) return null;
+  const socketId = room.tokenIndex.get(token);
+  const player = room.players.get(socketId);
+  return player ? { socketId, player } : null;
+}
+
+function reconnectPlayer(room, oldSocketId, newSocketId, nickname, emoji, color) {
+  const player = room.players.get(oldSocketId);
+  if (!player) return false;
+  room.players.delete(oldSocketId);
+  room.players.set(newSocketId, { ...player, nickname, emoji, color });
+  if (player.token) room.tokenIndex.set(player.token, newSocketId);
+  return true;
 }
 
 function removePlayer(socketId) {
   const room = getRoomByPlayerSocket(socketId);
   if (!room) return null;
+  const player = room.players.get(socketId);
+  if (player?.token) room.tokenIndex.delete(player.token);
   room.players.delete(socketId);
   return room;
 }
 
 function removeRoom(pin) {
   rooms.delete(pin);
+}
+
+// Remove rooms idle for more than 3 hours
+function pruneStaleRooms() {
+  const cutoff = Date.now() - 3 * 60 * 60 * 1000;
+  for (const [pin, room] of rooms.entries()) {
+    if (room.createdAt < cutoff) rooms.delete(pin);
+  }
 }
 
 function loadQuiz(pin, quiz) {
@@ -74,9 +103,10 @@ function recordAnswer(pin, socketId, answerIndex) {
 }
 
 function getAnswerCounts(room) {
-  const counts = [0, 0, 0, 0];
+  const optionCount = room.quiz?.questions[room.currentQuestionIndex]?.options?.length || 4;
+  const counts = Array(optionCount).fill(0);
   for (const idx of room.currentAnswers.values()) {
-    if (idx >= 0 && idx <= 3) counts[idx]++;
+    if (idx >= 0 && idx < optionCount) counts[idx]++;
   }
   return counts;
 }
@@ -100,8 +130,9 @@ const TIME_BONUS_MAX = 500;
 
 function calcScore(room) {
   const q = room.quiz.questions[room.currentQuestionIndex];
-  const elapsed   = Math.min(Date.now() - room.questionStartTime, q.timeLimit * 1000);
-  const fraction  = 1 - elapsed / (q.timeLimit * 1000);
+  if (q.type === 'lightning') return BASE_SCORE;
+  const elapsed  = Math.min(Date.now() - room.questionStartTime, q.timeLimit * 1000);
+  const fraction = 1 - elapsed / (q.timeLimit * 1000);
   return BASE_SCORE + Math.round(TIME_BONUS_MAX * fraction);
 }
 
@@ -118,8 +149,11 @@ module.exports = {
   getRoomByHostSocket,
   getRoomByPlayerSocket,
   addPlayer,
+  findPlayerByToken,
+  reconnectPlayer,
   removePlayer,
   removeRoom,
+  pruneStaleRooms,
   loadQuiz,
   recordAnswer,
   getAnswerCounts,

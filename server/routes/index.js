@@ -87,6 +87,14 @@ function routes(app) {
     res.status(204).end();
   });
 
+  // Duplicate quiz
+  app.post('/api/quizzes/:id/duplicate', adminAuth, (req, res) => {
+    const original = quizStore.get(req.params.id);
+    if (!original) return res.status(404).json({ error: 'Not found' });
+    const copy = quizStore.create({ title: `Copy of ${original.title}`, questions: original.questions });
+    res.status(201).json(copy);
+  });
+
   // Export: download quiz as JSON file
   app.get('/api/quizzes/:id/export', adminAuth, (req, res) => {
     const quiz = quizStore.get(req.params.id);

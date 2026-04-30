@@ -1,5 +1,12 @@
 const socket = io();
 
+// Persist session token for mid-game reconnect
+let sessionToken = sessionStorage.getItem('playerToken');
+if (!sessionToken) {
+  sessionToken = crypto.randomUUID();
+  sessionStorage.setItem('playerToken', sessionToken);
+}
+
 AudioManager.load('submit', '/assets/music/freesound_community-success-1-6297.mp3');
 
 const EMOJIS = [
@@ -146,7 +153,7 @@ function submitAvatar() {
   if (!nickname) return showError(avatarError, 'Enter a nickname');
   if (nickname.length > 20) return showError(avatarError, 'Max 20 characters');
   playerNickname = nickname;
-  socket.emit('ROOM_JOIN', { pin: gamePin, nickname: playerNickname, emoji: playerEmoji, color: playerColor });
+  socket.emit('ROOM_JOIN', { pin: gamePin, nickname: playerNickname, emoji: playerEmoji, color: playerColor, token: sessionToken });
 }
 
 // ── Socket: state transitions ─────────────────────────────────────────────────
@@ -181,24 +188,27 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image }) => {
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type }) => {
   clearInterval(timerInterval);
   playerAnswer = null;
   currentOptions = options;
 
-  document.getElementById('q-number').textContent = `Question ${questionNumber} of ${totalQuestions}`;
+  const isLightning = type === 'lightning';
+  const isTF = type === 'truefalse';
+  document.getElementById('q-number').textContent =
+    `Question ${questionNumber} of ${totalQuestions}${isLightning ? ' ⚡' : ''}`;
   document.getElementById('q-text').textContent = text;
+  document.getElementById('q-timer-display').textContent = timeLimit;
 
   const img = document.getElementById('q-image');
   if (image) { img.src = image; img.classList.remove('hidden'); }
   else { img.classList.add('hidden'); img.src = ''; }
-  document.getElementById('q-timer-display').textContent = timeLimit;
 
   const grid = document.getElementById('q-options');
   grid.innerHTML = '';
   options.forEach((option, i) => {
     const btn = document.createElement('button');
-    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-base rounded-2xl p-3 min-h-[72px] flex items-center justify-center text-center leading-tight`;
+    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-base rounded-2xl p-3 ${isTF ? 'min-h-[90px]' : 'min-h-[72px]'} flex items-center justify-center text-center leading-tight`;
     btn.textContent = option;
     btn.addEventListener('click', () => {
       if (playerAnswer !== null) return;
