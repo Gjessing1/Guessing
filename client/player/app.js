@@ -1,9 +1,6 @@
 const socket = io();
 
-AudioManager.load('lobby',      '/assets/music/lobby%20music.mp3');
-AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
-AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
-AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
+AudioManager.load('correct', '/assets/music/driken5482-applause-cheer-236786.mp3');
 
 const EMOJIS = [
   '🐶','🐱','🐼','🦊','🐨',
@@ -148,7 +145,6 @@ function submitAvatar() {
 
 socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
   if (status === 'lobby') {
-    AudioManager.play('lobby', true);
     showScreen('lobby');
     const lobbyAvatar = document.getElementById('lobby-avatar');
     lobbyAvatar.style.backgroundColor = playerColor;
@@ -156,11 +152,9 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     document.getElementById('lobby-nickname').textContent = playerNickname;
   }
   if (status === 'playing') {
-    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
-    AudioManager.stopAll();
     showScreen('pin');
     showError(pinError, reason === 'host_disconnected' ? 'Host disconnected' : 'Game ended');
   }
@@ -173,7 +167,7 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
-  AudioManager.stop('tick-tock');
+  if (correct) AudioManager.play('correct');
   playerScore = totalScore;
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
   document.getElementById('answered-score').textContent = `${playerScore.toLocaleString()} pts`;
@@ -183,8 +177,6 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image }) => {
   clearInterval(timerInterval);
-  AudioManager.stop('tick-tock');
-  AudioManager.play('game-start');
   playerAnswer = null;
   currentOptions = options;
 
@@ -223,7 +215,6 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     const pct = Math.max(0, (remaining / timeLimit) * 100);
     bar.style.transition = 'width 1s linear';
     bar.style.width = pct + '%';
-    if (remaining === 5) AudioManager.play('tick-tock');
     if (remaining <= 0) clearInterval(timerInterval);
   }, 1000);
 
@@ -232,8 +223,6 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
 
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex, players }) => {
   clearInterval(timerInterval);
-  AudioManager.stop('tick-tock');
-  AudioManager.play('applause');
 
   const { correct, scoreDelta, totalScore, didAnswer } = lastAnswerResult;
   const screen = document.getElementById('screen-result');
@@ -256,7 +245,6 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, players }) => {
 
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
-  AudioManager.play('applause');
   const rank = players.findIndex(p => p.nickname === playerNickname) + 1;
   const me   = players.find(p => p.nickname === playerNickname);
   document.getElementById('podium-score').textContent = me ? `${me.score.toLocaleString()} pts` : '';
