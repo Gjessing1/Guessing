@@ -38,6 +38,7 @@ const screens = {
   avatar:   document.getElementById('screen-avatar'),
   lobby:    document.getElementById('screen-lobby'),
   ready:    document.getElementById('screen-ready'),
+  slide:    document.getElementById('screen-slide'),
   question: document.getElementById('screen-question'),
   answered: document.getElementById('screen-answered'),
   result:   document.getElementById('screen-result'),
@@ -188,10 +189,20 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type }) => {
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
   clearInterval(timerInterval);
   playerAnswer = null;
   currentOptions = options;
+
+  // Slide: just show content, no timer or answers
+  if (type === 'slide') {
+    const img = document.getElementById('slide-image');
+    if (image) { img.src = image; img.classList.remove('hidden'); }
+    else { img.classList.add('hidden'); img.src = ''; }
+    document.getElementById('slide-text').textContent = text;
+    showScreen('slide');
+    return;
+  }
 
   const isLightning = type === 'lightning';
   const isTF = type === 'truefalse';
@@ -204,11 +215,21 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   if (image) { img.src = image; img.classList.remove('hidden'); }
   else { img.classList.add('hidden'); img.src = ''; }
 
+  // Toggle question text area visibility based on host setting
+  const textArea = document.getElementById('q-text-area');
   const grid = document.getElementById('q-options');
+  if (showQuestion) {
+    textArea.classList.remove('hidden');
+    grid.className = 'grid grid-cols-2 gap-2 p-3 flex-shrink-0';
+  } else {
+    textArea.classList.add('hidden');
+    grid.className = 'grid grid-cols-2 grid-rows-2 gap-2 p-3 flex-1';
+  }
+
   grid.innerHTML = '';
   options.forEach((option, i) => {
     const btn = document.createElement('button');
-    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-base rounded-2xl p-3 ${isTF ? 'min-h-[90px]' : 'min-h-[72px]'} flex items-center justify-center text-center leading-tight`;
+    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-base rounded-2xl p-3 ${showQuestion ? (isTF ? 'min-h-[90px]' : 'min-h-[72px]') : 'h-full'} flex items-center justify-center text-center leading-tight`;
     btn.textContent = option;
     btn.addEventListener('click', () => {
       if (playerAnswer !== null) return;

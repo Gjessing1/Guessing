@@ -25,26 +25,26 @@
 
   <!-- Screen: Quiz List -->
   <div id="screen-list" class="hidden min-h-screen flex flex-col">
-    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-800">
-      <h1 class="text-2xl font-black tracking-tight">Quizzes</h1>
-      <div class="flex items-center gap-3">
-        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl transition-colors text-sm">
-          Import JSON
+    <header class="flex items-center justify-between px-4 md:px-8 py-4 md:py-5 border-b border-gray-800">
+      <h1 class="text-xl md:text-2xl font-black tracking-tight">Quizzes</h1>
+      <div class="flex items-center gap-2">
+        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-3 md:px-4 rounded-xl transition-colors text-xs md:text-sm">
+          Import
           <input id="import-file" type="file" accept=".json" class="hidden">
         </label>
         <button id="new-quiz-btn"
-          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-colors text-sm">
+          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 md:px-5 rounded-xl transition-colors text-xs md:text-sm">
           + New Quiz
         </button>
       </div>
     </header>
-    <div id="quiz-list" class="flex-1 px-8 py-6 space-y-3"></div>
+    <div id="quiz-list" class="flex-1 px-4 md:px-8 py-4 md:py-6 space-y-3"></div>
     <p id="list-empty" class="hidden text-center text-gray-500 mt-20">No quizzes yet. Create one!</p>
   </div>
 
   <!-- Screen: Quiz Editor -->
   <div id="screen-editor" class="hidden min-h-screen flex flex-col">
-    <header class="flex items-center gap-4 px-8 py-5 border-b border-gray-800">
+    <header class="flex items-center gap-2 md:gap-4 px-4 md:px-8 py-4 md:py-5 border-b border-gray-800">
       <button id="back-btn" class="text-gray-400 hover:text-white transition-colors text-xl font-bold">←</button>
       <input id="quiz-title" type="text" placeholder="Quiz title" maxlength="80"
         class="flex-1 bg-transparent text-2xl font-black outline-none border-b-2 border-transparent focus:border-indigo-500 pb-1 transition-colors">
@@ -72,16 +72,18 @@
       <h2 id="modal-title" class="text-xl font-black mb-5">Add Question</h2>
 
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Question type</label>
-      <div class="flex gap-4 mb-4 text-sm">
+      <div class="flex flex-wrap gap-3 mb-4 text-sm">
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="multiple" class="accent-indigo-500"> Multiple choice</label>
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="truefalse" class="accent-indigo-500"> True / False</label>
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="lightning" class="accent-yellow-400"> ⚡ Lightning</label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="slide" class="accent-purple-400"> 🖼 Slide</label>
       </div>
 
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Question text</label>
       <textarea id="q-text" rows="3" placeholder="Enter your question…"
         class="w-full bg-gray-700 rounded-xl p-3 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4 resize-none text-base"></textarea>
 
+      <div id="opts-section">
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Answer options</label>
       <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="flex items-center gap-2">
@@ -108,6 +110,8 @@
         </div>
       </div>
 
+      </div><!-- /opts-section -->
+      <div id="correct-section">
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Correct answer</label>
       <div class="flex gap-3 mb-4">
         <label class="flex items-center gap-2 cursor-pointer">
@@ -126,9 +130,12 @@
         </label>
       </div>
 
+      </div><!-- /correct-section -->
+      <div id="time-section">
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Time limit (seconds)</label>
       <input id="q-time" type="number" min="5" max="120" value="20"
         class="w-28 bg-gray-700 rounded-xl p-2 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4">
+      </div><!-- /time-section -->
 
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Image (optional)</label>
       <div class="flex items-center gap-3 mb-2">

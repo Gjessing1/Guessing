@@ -18,6 +18,7 @@ let isLastQuestion = false;
 const screens = {
   lobby:    document.getElementById('screen-lobby'),
   ready:    document.getElementById('screen-ready'),
+  slide:    document.getElementById('screen-slide'),
   question: document.getElementById('screen-question'),
   results:  document.getElementById('screen-results'),
   podium:   document.getElementById('screen-podium'),
@@ -32,6 +33,8 @@ function showScreen(name) {
 
 (async function init() {
   document.getElementById('join-url').textContent = `${location.host}/player`;
+  const mobileUrl = document.getElementById('join-url-mobile');
+  if (mobileUrl) mobileUrl.textContent = `${location.host}/player`;
 
   AudioManager.load('lobby',      '/assets/music/lobby%20music.mp3');
   AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
@@ -97,7 +100,12 @@ function updateStartBtn() {
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
-  socket.emit('GAME_START', { pin: gamePin, quizId: selectedQuizId });
+  const showQ = document.getElementById('show-question-toggle').checked;
+  socket.emit('GAME_START', { pin: gamePin, quizId: selectedQuizId, showQuestionOnPlayer: showQ });
+});
+
+document.getElementById('slide-continue-btn').addEventListener('click', () => {
+  socket.emit('NEXT_QUESTION', { pin: gamePin });
 });
 
 document.getElementById('first-question-btn').addEventListener('click', () => {
@@ -145,10 +153,20 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit, image, type }) => {
   AudioManager.stop('tick-tock');
-  AudioManager.play('game-start');
   currentQuestionNumber = questionNumber;
   totalQuestions = total;
 
+  // Slide: show the slide screen, no timer
+  if (type === 'slide') {
+    const img = document.getElementById('slide-image');
+    if (image) { img.src = image; img.classList.remove('hidden'); }
+    else { img.classList.add('hidden'); img.src = ''; }
+    document.getElementById('slide-text').textContent = text;
+    showScreen('slide');
+    return;
+  }
+
+  AudioManager.play('game-start');
   document.getElementById('q-label').textContent =
     `Question ${questionNumber} of ${total}${type === 'lightning' ? ' ⚡' : ''}`;
   document.getElementById('q-text').textContent = text;

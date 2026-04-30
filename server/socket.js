@@ -66,7 +66,7 @@ function registerSocketHandlers(io) {
       socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
     });
 
-    socket.on('GAME_START', ({ pin, quizId }) => {
+    socket.on('GAME_START', ({ pin, quizId, showQuestionOnPlayer }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
       if (room.players.size === 0) return socket.emit('ERROR', { message: 'No players in room' });
@@ -75,6 +75,7 @@ function registerSocketHandlers(io) {
       if (!quiz) return socket.emit('ERROR', { message: 'Select a quiz before starting' });
 
       room.status = 'playing';
+      room.showQuestionOnPlayer = showQuestionOnPlayer === true;
       rm.loadQuiz(pin, quiz);
       io.to(pin).emit('GAME_STATE_CHANGE', { status: 'playing' });
     });
@@ -83,7 +84,11 @@ function registerSocketHandlers(io) {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
 
-      if (room.questionPhase === null || room.questionPhase === 'results') {
+      const curQ = room.currentQuestionIndex >= 0
+        ? room.quiz.questions[room.currentQuestionIndex] : null;
+      const onSlide = curQ?.type === 'slide';
+
+      if (room.questionPhase === null || room.questionPhase === 'results' || onSlide) {
         room.currentQuestionIndex++;
 
         if (room.currentQuestionIndex >= room.quiz.questions.length) {
@@ -93,7 +98,9 @@ function registerSocketHandlers(io) {
         }
 
         const q = room.quiz.questions[room.currentQuestionIndex];
-        room.questionPhase = 'question';
+        const isSlide = q.type === 'slide';
+
+        room.questionPhase = isSlide ? 'slide' : 'question';
         room.currentAnswers = new Map();
         room.questionStartTime = Date.now();
 
@@ -101,10 +108,11 @@ function registerSocketHandlers(io) {
           questionNumber: room.currentQuestionIndex + 1,
           totalQuestions: room.quiz.questions.length,
           text: q.text,
-          options: q.options,
-          timeLimit: q.timeLimit,
+          options: q.options || [],
+          timeLimit: q.timeLimit || 0,
           image: q.image || null,
           type: q.type || 'multiple',
+          showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
         });
 
       } else if (room.questionPhase === 'question') {

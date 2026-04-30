@@ -82,21 +82,21 @@ function renderQuizList(quizzes) {
 
   quizzes.forEach(({ id, title, questionCount, totalTime }) => {
     const row = document.createElement('div');
-    row.className = 'flex items-center justify-between bg-gray-800 rounded-2xl px-6 py-4';
+    row.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-800 rounded-2xl px-4 md:px-6 py-4 gap-3';
     row.innerHTML = `
       <div>
-        <p class="font-bold text-lg">${escapeHtml(title)}</p>
+        <p class="font-bold text-base md:text-lg">${escapeHtml(title)}</p>
         <p class="text-gray-400 text-sm">${questionCount} question${questionCount !== 1 ? 's' : ''} &middot; ${formatTime(totalTime || 0)}</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <button data-action="duplicate" data-id="${id}"
-          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">Duplicate</button>
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-1.5 px-3 rounded-lg text-xs md:text-sm transition-colors">Duplicate</button>
         <button data-action="export" data-id="${id}"
-          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">Export</button>
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-1.5 px-3 rounded-lg text-xs md:text-sm transition-colors">Export</button>
         <button data-action="edit" data-id="${id}"
-          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors">Edit</button>
+          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs md:text-sm transition-colors">Edit</button>
         <button data-action="delete" data-id="${id}"
-          class="bg-gray-700 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">Delete</button>
+          class="bg-gray-700 hover:bg-red-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs md:text-sm transition-colors">Delete</button>
       </div>
     `;
     list.appendChild(row);
@@ -269,15 +269,23 @@ document.getElementById('add-question-btn').addEventListener('click', () => open
 // ── Question Modal ────────────────────────────────────────────────────────────
 
 function applyQuestionType(type) {
-  const isTF = type === 'truefalse';
-  document.getElementById('opt-cd-row').style.display = isTF ? 'none' : 'contents';
-  document.getElementById('correct-cd').style.display = isTF ? 'none' : 'contents';
+  const isTF    = type === 'truefalse';
+  const isSlide = type === 'slide';
+
+  // Show/hide entire sections for slide
+  document.getElementById('opts-section').style.display    = isSlide ? 'none' : '';
+  document.getElementById('correct-section').style.display = isSlide ? 'none' : '';
+  document.getElementById('time-section').style.display    = isSlide ? 'none' : '';
+
+  // Show/hide C/D for true-false
+  document.getElementById('opt-cd-row').style.display  = (isTF || isSlide) ? 'none' : 'contents';
+  document.getElementById('correct-cd').style.display  = (isTF || isSlide) ? 'none' : 'contents';
+
   if (isTF) {
     document.getElementById('q-opt-a').value = 'True';
     document.getElementById('q-opt-b').value = 'False';
     document.getElementById('q-opt-a').readOnly = true;
     document.getElementById('q-opt-b').readOnly = true;
-    // Clamp correct to 0 or 1
     const cur = parseInt(document.querySelector('input[name="q-correct"]:checked')?.value ?? 0);
     document.querySelector(`input[name="q-correct"][value="${cur > 1 ? 0 : cur}"]`).checked = true;
   } else {
@@ -373,8 +381,10 @@ function saveQuestion() {
   const timeLimit = Math.max(5, Math.min(120, parseInt(document.getElementById('q-time').value) || 20));
   const errEl = document.getElementById('modal-error');
 
-  const isTF = type === 'truefalse';
-  const options = isTF
+  const isTF    = type === 'truefalse';
+  const isSlide = type === 'slide';
+
+  const options = isSlide ? [] : isTF
     ? ['True', 'False']
     : [
         document.getElementById('q-opt-a').value.trim(),
@@ -384,9 +394,9 @@ function saveQuestion() {
       ];
 
   if (!text) { errEl.textContent = 'Enter question text'; return; }
-  if (!isTF && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
+  if (!isTF && !isSlide && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
 
-  const q = { text, options, correct, timeLimit };
+  const q = { text, options, correct: isSlide ? 0 : correct, timeLimit: isSlide ? 0 : timeLimit };
   if (type !== 'multiple') q.type = type;
   if (pendingImageUrl) q.image = pendingImageUrl;
 

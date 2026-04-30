@@ -21,7 +21,7 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
 
-  <!-- Fixed mute button — clicking also unlocks browser audio -->
+  <!-- Fixed mute button -->
   <button id="mute-btn" class="fixed top-3 right-3 z-50 bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-lg opacity-60 hover:opacity-100 transition-opacity">🔊</button>
 
   <!-- Reaction overlay -->
@@ -29,81 +29,90 @@
 
   <!-- Screen: Lobby -->
   <div id="screen-lobby" class="hidden min-h-screen flex flex-col">
-    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-800">
-      <h1 class="text-2xl font-black tracking-tight">Guessing</h1>
-      <div class="text-right">
-        <p class="text-gray-400 text-sm">Join at <span id="join-url" class="text-white font-semibold"></span></p>
-      </div>
+    <header class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-gray-800">
+      <h1 class="text-xl md:text-2xl font-black tracking-tight">Guessing</h1>
+      <p class="text-gray-400 text-sm hidden md:block">Join at <span id="join-url" class="text-white font-semibold"></span></p>
     </header>
 
-    <div class="flex flex-1 gap-0">
-      <!-- Left: PIN + start -->
-      <div class="flex flex-col items-center flex-1 px-12 py-8 border-r border-gray-800 overflow-y-auto">
-        <p class="text-gray-400 text-sm uppercase tracking-widest mb-3">Game PIN</p>
-        <p id="lobby-pin" class="text-8xl font-black tracking-widest text-white mb-6">------</p>
-        <img id="qr-img" class="mb-6 rounded-xl" width="160" height="160" src="" alt="QR Code">
+    <div class="flex flex-col md:flex-row flex-1">
+      <!-- Left / Top: PIN + quiz -->
+      <div class="flex flex-col items-center px-6 md:px-12 py-6 md:py-8 border-b md:border-b-0 md:border-r border-gray-800 md:flex-1 overflow-y-auto">
+        <p class="text-gray-400 text-xs uppercase tracking-widest mb-2">Game PIN</p>
+        <p id="lobby-pin" class="text-6xl md:text-8xl font-black tracking-widest text-white mb-4">------</p>
+        <img id="qr-img" class="mb-4 rounded-xl hidden md:block" width="140" height="140" src="" alt="QR Code">
+        <p class="text-gray-400 text-sm md:hidden mb-2">Join at <span id="join-url-mobile" class="text-white font-semibold"></span></p>
         <div id="lobby-player-count" class="text-gray-500 mb-4">Waiting for players…</div>
         <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 self-start w-full max-w-xs">Select quiz</p>
-        <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-6"></div>
+        <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-4"></div>
+        <label class="flex items-center gap-2 text-sm text-gray-400 mb-6 cursor-pointer self-start">
+          <input type="checkbox" id="show-question-toggle" class="accent-indigo-500 w-4 h-4">
+          Show question text on player screens
+        </label>
         <button id="start-btn"
-          class="bg-indigo-600 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-indigo-500 text-white text-2xl font-bold py-4 px-16 rounded-2xl transition-colors"
+          class="w-full max-w-xs bg-indigo-600 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-indigo-500 text-white text-xl font-bold py-4 rounded-2xl transition-colors"
           disabled>
-          Start Game
+          Select a quiz first
         </button>
       </div>
 
-      <!-- Right: Player list -->
-      <div class="flex flex-col w-80 px-6 py-6">
-        <p class="text-gray-400 text-sm uppercase tracking-wider mb-4">Players</p>
-        <div id="player-grid" class="flex flex-wrap gap-3 overflow-y-auto"></div>
+      <!-- Right / Bottom: Player list -->
+      <div class="flex flex-col md:w-72 px-4 md:px-6 py-4 md:py-6">
+        <p class="text-gray-400 text-sm uppercase tracking-wider mb-3">Players</p>
+        <div id="player-grid" class="flex flex-wrap gap-2 overflow-y-auto"></div>
       </div>
     </div>
   </div>
 
-  <!-- Screen: Ready (game started, before first question) -->
+  <!-- Screen: Ready -->
   <div id="screen-ready" class="hidden min-h-screen flex flex-col items-center justify-center">
     <p class="text-gray-400 text-lg mb-4">All players locked in</p>
     <button id="first-question-btn"
-      class="bg-indigo-600 hover:bg-indigo-500 text-white text-3xl font-black py-6 px-20 rounded-2xl transition-colors">
+      class="bg-indigo-600 hover:bg-indigo-500 text-white text-2xl md:text-3xl font-black py-5 md:py-6 px-12 md:px-20 rounded-2xl transition-colors">
       Start First Question →
+    </button>
+  </div>
+
+  <!-- Screen: Slide -->
+  <div id="screen-slide" class="hidden min-h-screen flex flex-col items-center justify-center px-8 md:px-16 gap-6">
+    <img id="slide-image" class="hidden max-h-64 rounded-2xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
+    <p id="slide-text" class="text-3xl md:text-5xl font-black text-center leading-snug max-w-3xl"></p>
+    <button id="slide-continue-btn"
+      class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xl font-bold py-3 px-10 rounded-xl transition-colors">
+      Continue →
     </button>
   </div>
 
   <!-- Screen: Question -->
   <div id="screen-question" class="hidden min-h-screen flex flex-col">
-    <!-- Top bar -->
-    <div class="flex items-center justify-between px-8 py-4 border-b border-gray-800">
-      <span id="q-label" class="text-gray-400 font-semibold">Question 1 of 5</span>
-      <div class="relative flex items-center justify-center w-20 h-20">
-        <svg viewBox="0 0 100 100" class="w-20 h-20 -rotate-90">
+    <div class="flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b border-gray-800">
+      <span id="q-label" class="text-gray-400 font-semibold text-sm md:text-base">Question 1 of 5</span>
+      <div class="relative flex items-center justify-center w-14 h-14 md:w-20 md:h-20">
+        <svg viewBox="0 0 100 100" class="w-14 h-14 md:w-20 md:h-20 -rotate-90">
           <circle cx="50" cy="50" r="42" fill="none" stroke="#374151" stroke-width="10"/>
           <circle id="timer-circle" cx="50" cy="50" r="42" fill="none" stroke="#6366f1"
             stroke-width="10" stroke-linecap="round"
             stroke-dasharray="263.9" stroke-dashoffset="0"/>
         </svg>
-        <span id="timer-number" class="absolute text-2xl font-black"></span>
+        <span id="timer-number" class="absolute text-lg md:text-2xl font-black"></span>
       </div>
     </div>
 
-    <!-- Question text + optional image -->
-    <div class="flex-1 flex flex-col items-center justify-center px-12 py-4 gap-4">
-      <img id="q-image" class="hidden max-h-52 rounded-xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
-      <p id="q-text" class="text-4xl font-black text-center leading-snug max-w-3xl"></p>
+    <div class="flex-1 flex flex-col items-center justify-center px-6 md:px-12 py-3 md:py-4 gap-3 md:gap-4">
+      <img id="q-image" class="hidden max-h-36 md:max-h-52 rounded-xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
+      <p id="q-text" class="text-2xl md:text-4xl font-black text-center leading-snug max-w-3xl"></p>
     </div>
 
-    <!-- Options (display only) -->
-    <div id="q-options" class="grid grid-cols-2 gap-4 px-8 pb-4"></div>
+    <div id="q-options" class="grid grid-cols-2 gap-2 md:gap-4 px-4 md:px-8 pb-3 md:pb-4"></div>
 
-    <!-- Footer: answer count + button -->
-    <div class="flex items-center justify-between px-8 py-5 border-t border-gray-800">
+    <div class="flex items-center justify-between px-4 md:px-8 py-3 md:py-5 border-t border-gray-800">
       <div>
-        <p id="answer-count" class="text-gray-300 text-lg font-semibold">0 / 0 answered</p>
-        <div class="w-48 bg-gray-700 rounded-full h-2 mt-1">
+        <p id="answer-count" class="text-gray-300 text-sm md:text-lg font-semibold">0 / 0 answered</p>
+        <div class="w-32 md:w-48 bg-gray-700 rounded-full h-2 mt-1">
           <div id="answer-bar" class="bg-indigo-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
         </div>
       </div>
       <button id="show-results-btn"
-        class="bg-indigo-600 hover:bg-indigo-500 text-white text-xl font-bold py-3 px-10 rounded-xl transition-colors">
+        class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
         Show Results →
       </button>
     </div>
@@ -111,33 +120,33 @@
 
   <!-- Screen: Results -->
   <div id="screen-results" class="hidden min-h-screen flex flex-col">
-    <div class="flex items-center justify-between px-8 py-5 border-b border-gray-800">
-      <span id="results-label" class="text-gray-400 font-semibold">Question 1 Results</span>
-      <span id="results-q-text" class="text-gray-300 max-w-xl truncate"></span>
+    <div class="flex items-center justify-between px-4 md:px-8 py-4 md:py-5 border-b border-gray-800">
+      <span id="results-label" class="text-gray-400 font-semibold text-sm md:text-base">Question 1 Results</span>
+      <span id="results-q-text" class="text-gray-300 max-w-xs md:max-w-xl truncate text-sm"></span>
     </div>
 
-    <div id="results-bars" class="flex flex-col gap-3 px-12 pt-6 pb-4"></div>
+    <div id="results-bars" class="flex flex-col gap-2 md:gap-3 px-4 md:px-12 pt-4 md:pt-6 pb-3 md:pb-4"></div>
 
-    <div class="px-12 pb-6">
-      <p class="text-gray-500 text-xs uppercase tracking-wider mb-3">Leaderboard</p>
-      <div id="results-top" class="flex gap-3"></div>
+    <div class="px-4 md:px-12 pb-4 md:pb-6">
+      <p class="text-gray-500 text-xs uppercase tracking-wider mb-2 md:mb-3">Leaderboard</p>
+      <div id="results-top" class="flex gap-2 md:gap-3"></div>
     </div>
 
-    <div class="px-8 py-5 border-t border-gray-800 flex justify-end">
+    <div class="px-4 md:px-8 py-3 md:py-5 border-t border-gray-800 flex justify-end">
       <button id="next-btn"
-        class="bg-indigo-600 hover:bg-indigo-500 text-white text-xl font-bold py-3 px-10 rounded-xl transition-colors">
+        class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
         Next Question →
       </button>
     </div>
   </div>
 
   <!-- Screen: Podium -->
-  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center px-8">
-    <div class="text-6xl mb-4">🏆</div>
-    <h2 class="text-4xl font-black mb-10">Final Scores</h2>
-    <div id="podium-list" class="w-full max-w-lg space-y-3 mb-10"></div>
+  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center px-6 md:px-8">
+    <div class="text-5xl md:text-6xl mb-4">🏆</div>
+    <h2 class="text-3xl md:text-4xl font-black mb-8 md:mb-10">Final Scores</h2>
+    <div id="podium-list" class="w-full max-w-lg space-y-3 mb-8 md:mb-10"></div>
     <button onclick="location.reload()"
-      class="bg-indigo-600 hover:bg-indigo-500 text-white text-xl font-bold py-3 px-10 rounded-xl transition-colors">
+      class="bg-indigo-600 hover:bg-indigo-500 text-white text-lg md:text-xl font-bold py-3 px-10 rounded-xl transition-colors">
       New Game
     </button>
   </div>

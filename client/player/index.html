@@ -70,6 +70,13 @@
     <p class="text-indigo-300 mt-3 text-lg">Question coming up…</p>
   </div>
 
+  <!-- Screen 4b: Slide -->
+  <div id="screen-slide" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6 gap-6">
+    <img id="slide-image" class="hidden max-h-52 rounded-2xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
+    <p id="slide-text" class="text-2xl font-bold text-center leading-snug"></p>
+    <p class="text-gray-500 text-sm animate-pulse">Waiting for host…</p>
+  </div>
+
   <!-- Screen 5: Question -->
   <div id="screen-question" class="hidden h-screen flex flex-col bg-gray-900">
     <div class="w-full bg-gray-800 h-2 flex-shrink-0">
@@ -79,7 +86,7 @@
       <span id="q-number">Question 1 of 5</span>
       <span id="q-timer-display" class="text-white font-black text-2xl">20</span>
     </div>
-    <div class="flex-1 flex flex-col items-center justify-center px-4 py-1 gap-2 min-h-0">
+    <div id="q-text-area" class="flex-1 flex flex-col items-center justify-center px-4 py-1 gap-2 min-h-0">
       <img id="q-image" class="hidden max-h-28 rounded-xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
       <p id="q-text" class="text-white text-xl font-bold text-center leading-snug"></p>
     </div>

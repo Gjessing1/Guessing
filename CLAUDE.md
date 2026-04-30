@@ -116,6 +116,9 @@
 - [x] Host disconnect → 30s grace period before ending game
 - [x] Room cleanup: rooms pruned after 3 hours idle
 
-### Phase 8: Analytics
-- [ ] Simple per-quiz analytics in admin (avg score, hardest question)
-- [ ] Export results as CSV
+### Phase 8: UX Improvements ✅
+- [x] Player default layout: colored answer boxes fill the screen, no question text
+- [x] Host lobby toggle "Show question text on player screens" (default off)
+- [x] Slide question type (🖼): title + optional image, no answers, host clicks Continue
+- [x] Host view mobile-responsive (stacks vertically on small screens)
+- [x] Admin list and editor mobile-responsive (buttons wrap, compact headers)
