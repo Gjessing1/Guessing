@@ -1,5 +1,6 @@
 const rm = require('./game/roomManager');
 const quizStore = require('./quiz/quizStore');
+const resultStore = require('./results/resultStore');
 
 // Stale room cleanup — runs every 30 minutes
 setInterval(() => rm.pruneStaleRooms(), 30 * 60 * 1000);
@@ -92,8 +93,33 @@ function registerSocketHandlers(io) {
         room.currentQuestionIndex++;
 
         if (room.currentQuestionIndex >= room.quiz.questions.length) {
-          io.to(pin).emit('FINAL_PODIUM', { players: rm.getLeaderboard(room) });
+          const players = rm.getLeaderboard(room);
+          io.to(pin).emit('FINAL_PODIUM', { players });
           room.status = 'ended';
+
+          // Persist game result for analytics
+          resultStore.save({
+            quizId: room.quiz.id || null,
+            quizTitle: room.quiz.title,
+            playedAt: new Date().toISOString(),
+            playerCount: players.length,
+            players: players.map((p, i) => ({
+              nickname: p.nickname, emoji: p.emoji, color: p.color,
+              score: p.score, rank: i + 1,
+            })),
+            questions: room.questionHistory.map(h => {
+              const q = room.quiz.questions[h.quizIndex];
+              const correctCount  = h.answerCounts[h.correctIndex] || 0;
+              const answeredCount = h.answerCounts.reduce((s, c) => s + c, 0);
+              return {
+                text: q.text,
+                type: q.type || 'multiple',
+                correctCount,
+                answeredCount,
+                correctPct: answeredCount > 0 ? Math.round(correctCount / answeredCount * 100) : 0,
+              };
+            }),
+          });
           return;
         }
 
@@ -118,10 +144,17 @@ function registerSocketHandlers(io) {
       } else if (room.questionPhase === 'question') {
         const q = room.quiz.questions[room.currentQuestionIndex];
         room.questionPhase = 'results';
+        const answerCounts = rm.getAnswerCounts(room);
+
+        room.questionHistory.push({
+          quizIndex: room.currentQuestionIndex,
+          answerCounts,
+          correctIndex: q.correct,
+        });
 
         io.to(pin).emit('RESULTS_BREAKDOWN', {
           correctIndex: q.correct,
-          answerCounts: rm.getAnswerCounts(room),
+          answerCounts,
           players: rm.getLeaderboard(room),
           isLast: room.currentQuestionIndex === room.quiz.questions.length - 1,
         });

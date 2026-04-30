@@ -9,9 +9,11 @@ let pendingImageUrl = null;
 // ── Screens ───────────────────────────────────────────────────────────────────
 
 const screens = {
-  login:  document.getElementById('screen-login'),
-  list:   document.getElementById('screen-list'),
-  editor: document.getElementById('screen-editor'),
+  login:         document.getElementById('screen-login'),
+  list:          document.getElementById('screen-list'),
+  editor:        document.getElementById('screen-editor'),
+  resultsList:   document.getElementById('screen-results-list'),
+  resultsDetail: document.getElementById('screen-results-detail'),
 };
 
 function showScreen(name) {
@@ -119,6 +121,9 @@ async function duplicateQuiz(id) {
 }
 
 document.getElementById('new-quiz-btn').addEventListener('click', createQuiz);
+document.getElementById('nav-to-results').addEventListener('click', loadResultsList);
+document.getElementById('nav-to-quizzes').addEventListener('click', loadQuizList);
+document.getElementById('results-back-btn').addEventListener('click', loadResultsList);
 
 async function createQuiz() {
   const title = prompt('Quiz title:');
@@ -414,6 +419,135 @@ function saveQuestion() {
 document.getElementById('modal-question').addEventListener('click', (e) => {
   if (e.target === document.getElementById('modal-question')) closeModal();
 });
+
+// ── Results ───────────────────────────────────────────────────────────────────
+
+async function loadResultsList() {
+  const res = await adminFetch('/api/results');
+  if (!res) return;
+  const results = await res.json();
+  renderResultsList(results);
+  showScreen('resultsList');
+}
+
+function renderResultsList(results) {
+  const listEl = document.getElementById('results-list-el');
+  const emptyEl = document.getElementById('results-empty');
+  listEl.innerHTML = '';
+
+  if (results.length === 0) {
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  results.forEach(({ id, quizTitle, playerCount, playedAt }) => {
+    const row = document.createElement('div');
+    row.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-800 rounded-2xl px-4 md:px-6 py-4 gap-3';
+    const date = new Date(playedAt).toLocaleString();
+    row.innerHTML = `
+      <div>
+        <p class="font-bold">${escapeHtml(quizTitle)}</p>
+        <p class="text-gray-400 text-sm">${date} &middot; ${playerCount} player${playerCount !== 1 ? 's' : ''}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button data-action="view" data-id="${id}"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition-colors">View</button>
+        <button data-action="export" data-id="${id}"
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition-colors">Export CSV</button>
+        <button data-action="delete" data-id="${id}"
+          class="bg-gray-700 hover:bg-red-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition-colors">Delete</button>
+      </div>
+    `;
+    listEl.appendChild(row);
+  });
+
+  listEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === 'view')   openResultDetail(id);
+    if (action === 'export') exportResult(id);
+    if (action === 'delete') deleteResult(id);
+  });
+}
+
+async function openResultDetail(id) {
+  const res = await adminFetch(`/api/results/${id}`);
+  if (!res) return;
+  const result = await res.json();
+
+  document.getElementById('detail-title').textContent = result.quizTitle;
+  document.getElementById('detail-meta').textContent =
+    `${new Date(result.playedAt).toLocaleString()} · ${result.playerCount} player${result.playerCount !== 1 ? 's' : ''}`;
+  document.getElementById('detail-export-btn').onclick = () => exportResult(id);
+
+  // Standings
+  const medals = ['🥇', '🥈', '🥉'];
+  const playersEl = document.getElementById('detail-players');
+  playersEl.innerHTML = '';
+  result.players.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3';
+    row.innerHTML = `
+      <span class="text-xl w-8 text-center flex-shrink-0">${medals[i] || `${i + 1}.`}</span>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+           style="background-color:${p.color}">${p.emoji}</div>
+      <span class="flex-1 font-semibold truncate">${escapeHtml(p.nickname)}</span>
+      <span class="text-gray-300 font-semibold flex-shrink-0">${p.score.toLocaleString()} pts</span>
+    `;
+    playersEl.appendChild(row);
+  });
+
+  // Question breakdown
+  const questionsEl = document.getElementById('detail-questions');
+  questionsEl.innerHTML = '';
+  if (result.questions.length === 0) {
+    questionsEl.innerHTML = '<p class="text-gray-500 text-sm">No question data recorded.</p>';
+  }
+  result.questions.forEach((q, i) => {
+    const pct = q.correctPct || 0;
+    const color = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500';
+    const textColor = pct >= 70 ? 'text-green-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400';
+    const row = document.createElement('div');
+    row.className = 'bg-gray-800 rounded-xl px-4 py-3';
+    row.innerHTML = `
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <p class="font-semibold text-sm flex-1">${i + 1}. ${escapeHtml(q.text)}</p>
+        <span class="text-sm font-black flex-shrink-0 ${textColor}">${pct}%</span>
+      </div>
+      <div class="w-full bg-gray-700 rounded-full h-2">
+        <div class="${color} h-2 rounded-full transition-all" style="width:${pct}%"></div>
+      </div>
+      <p class="text-gray-500 text-xs mt-1">${q.correctCount} / ${q.answeredCount} answered correctly</p>
+    `;
+    questionsEl.appendChild(row);
+  });
+
+  showScreen('resultsDetail');
+}
+
+async function exportResult(id) {
+  const res = await adminFetch(`/api/results/${id}/export`);
+  if (!res || !res.ok) return;
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const filename = disposition.match(/filename="(.+?)"/)?.[1] || 'result.csv';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function deleteResult(id) {
+  if (!confirm('Delete this result?')) return;
+  await adminFetch(`/api/results/${id}`, { method: 'DELETE' });
+  loadResultsList();
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

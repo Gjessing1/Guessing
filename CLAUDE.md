@@ -122,3 +122,14 @@
 - [x] Slide question type (🖼): title + optional image, no answers, host clicks Continue
 - [x] Host view mobile-responsive (stacks vertically on small screens)
 - [x] Admin list and editor mobile-responsive (buttons wrap, compact headers)
+
+### Phase 9: UI improvements ✅
+- [x] Removed "Select quiz" label from host lobby
+- [x] Centered "Show question text on player screens" toggle
+- [x] QR code now points to `/join/:pin` (server redirect) — reliable across all browsers and QR scanners
+
+### Phase 10: Analytics ✅
+- [x] Game results saved to `data/results.json` after every completed game
+- [x] Results tab in admin: history list with date, quiz name, player count
+- [x] Per-game detail: final standings + per-question correct % bar chart
+- [x] Export game result as CSV (standings + question stats, Excel-compatible)

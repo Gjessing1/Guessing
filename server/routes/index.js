@@ -2,6 +2,7 @@ const path = require('path');
 const multer = require('multer');
 const QRCode = require('qrcode');
 const quizStore = require('../quiz/quizStore');
+const resultStore = require('../results/resultStore');
 const { createRoom, getRoom } = require('../game/roomManager');
 
 function adminAuth(req, res, next) {
@@ -31,13 +32,18 @@ const upload = multer({
 function routes(app) {
   app.get('/', (req, res) => res.redirect('/player'));
 
+  // Clean join link — QR code and sharable URL
+  app.get('/join/:pin', (req, res) => {
+    res.redirect(`/player?pin=${req.params.pin}`);
+  });
+
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   // ── Room routes ───────────────────────────────────────────────────────────────
 
   app.post('/api/rooms', async (req, res) => {
     const room = createRoom();
-    const playerUrl = `${req.protocol}://${req.get('host')}/player?pin=${room.pin}`;
+    const playerUrl = `${req.protocol}://${req.get('host')}/join/${room.pin}`;
     const qr = await QRCode.toDataURL(playerUrl, {
       width: 160, margin: 1,
       color: { dark: '#ffffff', light: '#1f2937' },
@@ -111,6 +117,53 @@ function routes(app) {
       return res.status(400).json({ error: 'Invalid quiz format' });
     }
     res.status(201).json(quizStore.create({ title, questions }));
+  });
+
+  // ── Results ───────────────────────────────────────────────────────────────────
+
+  app.get('/api/results/summary', adminAuth, (req, res) => {
+    res.json(resultStore.countByQuizId());
+  });
+
+  app.get('/api/results', adminAuth, (req, res) => {
+    res.json(resultStore.list());
+  });
+
+  app.get('/api/results/:id/export', adminAuth, (req, res) => {
+    const result = resultStore.get(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Not found' });
+
+    const rows = [
+      [`Game: ${result.quizTitle}`],
+      [`Date: ${result.playedAt}`],
+      [`Players: ${result.playerCount}`],
+      [],
+      ['Rank', 'Nickname', 'Score'],
+      ...result.players.map(p => [p.rank, p.nickname, p.score]),
+      [],
+      ['#', 'Question', 'Correct', 'Answered', '% Correct'],
+      ...result.questions.map((q, i) => [i + 1, q.text, q.correctCount, q.answeredCount, `${q.correctPct}%`]),
+    ];
+
+    const csv = rows.map(r =>
+      r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')
+    ).join('\r\n');
+
+    const filename = `${result.quizTitle.replace(/[^a-z0-9]/gi, '_')}_${result.playedAt.slice(0, 10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('﻿' + csv);
+  });
+
+  app.get('/api/results/:id', adminAuth, (req, res) => {
+    const result = resultStore.get(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Not found' });
+    res.json(result);
+  });
+
+  app.delete('/api/results/:id', adminAuth, (req, res) => {
+    if (!resultStore.remove(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    res.status(204).end();
   });
 
   // ── Image upload ──────────────────────────────────────────────────────────────

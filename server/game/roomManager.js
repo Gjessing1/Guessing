@@ -21,6 +21,7 @@ function createRoom() {
     questionPhase: null,       // 'question' | 'results' | null
     currentAnswers: new Map(), // socketId → answerIndex
     questionStartTime: null,
+    questionHistory: [],       // [{ quizIndex, answerCounts, correctIndex }]
     createdAt: Date.now(),
   });
   return rooms.get(pin);
