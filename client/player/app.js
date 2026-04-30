@@ -16,8 +16,8 @@ const OPTION_COLORS = ['bg-red-600','bg-blue-600','bg-yellow-500','bg-green-600'
 
 let gamePin        = null;
 let playerNickname = '';
-let playerEmoji    = EMOJIS[0];
-let playerColor    = COLORS[0];
+let playerEmoji    = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+let playerColor    = COLORS[Math.floor(Math.random() * COLORS.length)];
 let playerAnswer      = null;
 let currentOptions    = [];
 let timerInterval     = null;
@@ -108,7 +108,7 @@ EMOJIS.forEach((emoji, i) => {
   const btn = document.createElement('button');
   btn.textContent = emoji;
   btn.className = 'text-3xl p-2 rounded-xl hover:bg-gray-700 active:bg-gray-600 transition-colors';
-  if (i === 0) btn.classList.add('ring-2', 'ring-white', 'bg-gray-700');
+  if (emoji === playerEmoji) btn.classList.add('ring-2', 'ring-white', 'bg-gray-700');
   btn.addEventListener('click', () => {
     emojiGrid.querySelectorAll('button').forEach(b => b.classList.remove('ring-2', 'ring-white', 'bg-gray-700'));
     btn.classList.add('ring-2', 'ring-white', 'bg-gray-700');
@@ -123,7 +123,7 @@ COLORS.forEach((color, i) => {
   const btn = document.createElement('button');
   btn.style.backgroundColor = color;
   btn.className = 'w-12 h-12 rounded-full border-4 border-transparent hover:scale-110 active:scale-95 transition-transform';
-  if (i === 0) btn.classList.add('border-white');
+  if (color === playerColor) btn.classList.add('border-white');
   btn.addEventListener('click', () => {
     colorGrid.querySelectorAll('button').forEach(b => b.classList.remove('border-white'));
     btn.classList.add('border-white');
@@ -177,7 +177,6 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
   playerScore = totalScore;
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
-  document.getElementById('answered-score').textContent = `${playerScore.toLocaleString()} pts`;
 });
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
