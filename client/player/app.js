@@ -1,6 +1,6 @@
 const socket = io();
 
-AudioManager.load('correct', '/assets/music/driken5482-applause-cheer-236786.mp3');
+AudioManager.load('submit', '/assets/music/freesound_community-success-1-6297.mp3');
 
 const EMOJIS = [
   '🐶','🐱','🐼','🦊','🐨',
@@ -167,7 +167,6 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
-  if (correct) AudioManager.play('correct');
   playerScore = totalScore;
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
   document.getElementById('answered-score').textContent = `${playerScore.toLocaleString()} pts`;
@@ -197,6 +196,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     btn.addEventListener('click', () => {
       if (playerAnswer !== null) return;
       playerAnswer = i;
+      AudioManager.play('submit');
       socket.emit('ANSWER_SUBMIT', { pin: gamePin, answerIndex: i });
       showScreen('answered');
     });
