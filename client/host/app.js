@@ -38,9 +38,12 @@ function showScreen(name) {
   AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
   AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
 
+  // Start muted — first click on mute button enables audio (bypasses autoplay policy)
+  AudioManager.toggleMute();
   document.getElementById('mute-btn').addEventListener('click', () => {
     const muted = AudioManager.toggleMute();
     document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+    if (!muted) AudioManager.resume('lobby');
   });
 
   try {
@@ -54,22 +57,32 @@ function showScreen(name) {
       color: { dark: '#ffffff', light: '#1f2937' },
     });
 
-    socket.emit('HOST_REGISTER', { pin });
-
-    // Populate quiz selector
+    // Fetch quizzes before registering so the selector is ready when lobby shows
     const quizRes = await fetch('/api/quizzes');
     const quizzes = await quizRes.json();
     const select = document.getElementById('quiz-select');
-    quizzes.forEach(({ id, title, questionCount }) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = `${title} (${questionCount} questions)`;
-      select.appendChild(opt);
-    });
+
+    if (quizzes.length === 0) {
+      select.innerHTML = '<option value="">No quizzes — create one at /admin</option>';
+    } else {
+      quizzes.forEach(({ id, title, questionCount }) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${title} (${questionCount} questions)`;
+        select.appendChild(opt);
+      });
+      if (quizzes.length === 1) {
+        select.value = quizzes[0].id;
+        selectedQuizId = quizzes[0].id;
+      }
+    }
+
     select.addEventListener('change', () => {
       selectedQuizId = select.value || null;
       updateStartBtn();
     });
+
+    socket.emit('HOST_REGISTER', { pin });
   } catch {
     document.body.innerHTML = '<p class="text-red-400 text-center mt-20 text-2xl">Could not connect to server</p>';
   }
@@ -115,9 +128,6 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 // ── Game state changes ────────────────────────────────────────────────────────
-
-// Browsers block autoplay until user interaction — resume lobby music on first click
-document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
 
 socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
   if (status === 'lobby') {
