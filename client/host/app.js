@@ -30,6 +30,7 @@ function showScreen(name) {
 // ── Init: create room via HTTP then register socket ───────────────────────────
 
 (async function init() {
+  document.getElementById('join-url').textContent = `${location.host}/player`;
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
     const { pin } = await res.json();

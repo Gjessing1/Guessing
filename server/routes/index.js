@@ -10,6 +10,8 @@ function adminAuth(req, res, next) {
 }
 
 function routes(app) {
+  app.get('/', (req, res) => res.redirect('/player'));
+
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   // Host creates a new game room; returns the PIN
