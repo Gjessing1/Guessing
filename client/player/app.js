@@ -1,5 +1,11 @@
 const socket = io();
 
+AudioManager.load('lobby',     '/assets/music/lobby.mp3');
+AudioManager.load('question',  '/assets/music/question.mp3');
+AudioManager.load('correct',   '/assets/music/correct.mp3');
+AudioManager.load('incorrect', '/assets/music/incorrect.mp3');
+AudioManager.load('podium',    '/assets/music/podium.mp3');
+
 const EMOJIS = [
   '🐶','🐱','🐼','🦊','🐨',
   '🦁','🐯','🐸','🐙','🦄',
@@ -34,15 +40,29 @@ const screens = {
   podium:   document.getElementById('screen-podium'),
 };
 
+const REACTION_SCREENS = new Set(['lobby', 'question', 'answered', 'result']);
+
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
   screens[name].classList.remove('hidden');
+  document.getElementById('reaction-bar').classList.toggle('hidden', !REACTION_SCREENS.has(name));
 }
 
 function showError(el, msg) {
   el.textContent = msg;
   setTimeout(() => { el.textContent = ''; }, 3000);
 }
+
+document.getElementById('mute-btn').addEventListener('click', () => {
+  const muted = AudioManager.toggleMute();
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+});
+
+document.querySelectorAll('.reaction-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (gamePin) socket.emit('REACTION_SEND', { pin: gamePin, emoji: btn.dataset.emoji });
+  });
+});
 
 // ── PIN screen ────────────────────────────────────────────────────────────────
 
@@ -128,6 +148,7 @@ function submitAvatar() {
 
 socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
   if (status === 'lobby') {
+    AudioManager.play('lobby', true);
     showScreen('lobby');
     const lobbyAvatar = document.getElementById('lobby-avatar');
     lobbyAvatar.style.backgroundColor = playerColor;
@@ -135,9 +156,11 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     document.getElementById('lobby-nickname').textContent = playerNickname;
   }
   if (status === 'playing') {
+    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
+    AudioManager.stopAll();
     showScreen('pin');
     showError(pinError, reason === 'host_disconnected' ? 'Host disconnected' : 'Game ended');
   }
@@ -150,6 +173,8 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
+  AudioManager.stop('question');
+  AudioManager.play(correct ? 'correct' : 'incorrect');
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
 });
 
@@ -157,6 +182,7 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit }) => {
   clearInterval(timerInterval);
+  AudioManager.play('question', true);
   playerAnswer = null;
   currentOptions = options;
 
@@ -199,6 +225,10 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
 
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
   clearInterval(timerInterval);
+  if (!lastAnswerResult.didAnswer) {
+    AudioManager.stop('question');
+    AudioManager.play('incorrect');
+  }
 
   const { correct, scoreDelta, totalScore, didAnswer } = lastAnswerResult;
   const screen = document.getElementById('screen-result');
@@ -218,6 +248,7 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
 
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
+  AudioManager.play('podium', true);
   const rank = players.findIndex(p => p.nickname === playerNickname) + 1;
   const me   = players.find(p => p.nickname === playerNickname);
   document.getElementById('podium-score').textContent = me ? `${me.score.toLocaleString()} pts` : '';

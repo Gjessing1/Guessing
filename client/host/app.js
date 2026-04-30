@@ -31,11 +31,30 @@ function showScreen(name) {
 
 (async function init() {
   document.getElementById('join-url').textContent = `${location.host}/player`;
+
+  AudioManager.load('lobby',    '/assets/music/lobby.mp3');
+  AudioManager.load('question', '/assets/music/question.mp3');
+  AudioManager.load('podium',   '/assets/music/podium.mp3');
+
+  document.getElementById('mute-btn').addEventListener('click', () => {
+    const muted = AudioManager.toggleMute();
+    document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  });
+
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
     const { pin } = await res.json();
     gamePin = pin;
     document.getElementById('lobby-pin').textContent = pin;
+
+    new QRCode(document.getElementById('qr-code'), {
+      text: `${location.origin}/player`,
+      width: 160,
+      height: 160,
+      colorDark: '#ffffff',
+      colorLight: '#1f2937',
+    });
+
     socket.emit('HOST_REGISTER', { pin });
   } catch {
     document.body.innerHTML = '<p class="text-red-400 text-center mt-20 text-2xl">Could not connect to server</p>';
@@ -78,12 +97,15 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 
 socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
   if (status === 'lobby') {
+    AudioManager.play('lobby', true);
     showScreen('lobby');
   }
   if (status === 'playing') {
+    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
+    AudioManager.stopAll();
     location.reload();
   }
 });
@@ -91,6 +113,7 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
 // ── Question ──────────────────────────────────────────────────────────────────
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit }) => {
+  AudioManager.play('question', true);
   currentQuestionNumber = questionNumber;
   totalQuestions = total;
 
@@ -147,6 +170,7 @@ function startTimer(seconds) {
 
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast }) => {
   clearInterval(timerInterval);
+  AudioManager.stop('question');
   isLastQuestion = isLast;
 
   document.getElementById('results-label').textContent =
@@ -211,8 +235,20 @@ document.getElementById('next-btn').addEventListener('click', () => {
 
 // ── Podium ────────────────────────────────────────────────────────────────────
 
+socket.on('REACTION_BROADCAST', ({ emoji, color }) => {
+  const overlay = document.getElementById('reaction-overlay');
+  const el = document.createElement('div');
+  el.className = 'reaction-float';
+  el.style.left = `${10 + Math.random() * 80}%`;
+  el.style.bottom = '60px';
+  el.textContent = emoji;
+  overlay.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+});
+
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
+  AudioManager.play('podium', true);
   const medals = ['🥇', '🥈', '🥉'];
   const list = document.getElementById('podium-list');
   list.innerHTML = '';

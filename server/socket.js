@@ -95,8 +95,12 @@ function registerSocketHandlers(io) {
       }
     });
 
-    socket.on('REACTION_SEND', () => {
-      // Phase 3
+    socket.on('REACTION_SEND', ({ pin, emoji }) => {
+      const room = rm.getRoom(pin);
+      if (!room || !room.hostSocketId) return;
+      if (!room.players.has(socket.id)) return;
+      const { color } = room.players.get(socket.id);
+      io.to(room.hostSocketId).emit('REACTION_BROADCAST', { emoji, color });
     });
 
     socket.on('disconnect', () => {

@@ -8,6 +8,18 @@
 </head>
 <body class="bg-gray-900 text-white">
 
+  <!-- Fixed mute button -->
+  <button id="mute-btn" class="fixed top-3 right-3 z-50 bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-lg opacity-60 hover:opacity-100 transition-opacity">🔊</button>
+
+  <!-- Reaction bar -->
+  <div id="reaction-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center gap-5 pb-4 pt-2 bg-gradient-to-t from-gray-900/80 to-transparent">
+    <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="👍">👍</button>
+    <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="❤️">❤️</button>
+    <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="😂">😂</button>
+    <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="😮">😮</button>
+    <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="🔥">🔥</button>
+  </div>
+
   <!-- Screen 1: PIN Entry -->
   <div id="screen-pin" class="min-h-screen flex flex-col items-center justify-center px-6">
     <h1 class="text-5xl font-black mb-2 tracking-tight">Guessing</h1>
@@ -99,6 +111,7 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+  <script src="/audio.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
