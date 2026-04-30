@@ -32,9 +32,9 @@ function showScreen(name) {
 (async function init() {
   document.getElementById('join-url').textContent = `${location.host}/player`;
 
-  AudioManager.load('lobby',    '/assets/music/lobby.mp3');
-  AudioManager.load('question', '/assets/music/question.mp3');
-  AudioManager.load('podium',   '/assets/music/podium.mp3');
+  AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
+  AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
+  AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
 
   document.getElementById('mute-btn').addEventListener('click', () => {
     const muted = AudioManager.toggleMute();
@@ -97,11 +97,9 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 
 socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
   if (status === 'lobby') {
-    AudioManager.play('lobby', true);
     showScreen('lobby');
   }
   if (status === 'playing') {
-    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
@@ -113,7 +111,8 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
 // ── Question ──────────────────────────────────────────────────────────────────
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit }) => {
-  AudioManager.play('question', true);
+  AudioManager.stop('tick-tock');
+  AudioManager.play('game-start');
   currentQuestionNumber = questionNumber;
   totalQuestions = total;
 
@@ -162,6 +161,7 @@ function startTimer(seconds) {
   timerInterval = setInterval(() => {
     remaining--;
     tick();
+    if (remaining === 5) AudioManager.play('tick-tock');
     if (remaining <= 0) clearInterval(timerInterval);
   }, 1000);
 }
@@ -170,7 +170,8 @@ function startTimer(seconds) {
 
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast }) => {
   clearInterval(timerInterval);
-  AudioManager.stop('question');
+  AudioManager.stop('tick-tock');
+  AudioManager.play('applause');
   isLastQuestion = isLast;
 
   document.getElementById('results-label').textContent =
@@ -248,7 +249,7 @@ socket.on('REACTION_BROADCAST', ({ emoji, color }) => {
 
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
-  AudioManager.play('podium', true);
+  AudioManager.play('applause');
   const medals = ['🥇', '🥈', '🥉'];
   const list = document.getElementById('podium-list');
   list.innerHTML = '';

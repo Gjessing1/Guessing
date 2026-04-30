@@ -1,10 +1,8 @@
 const socket = io();
 
-AudioManager.load('lobby',     '/assets/music/lobby.mp3');
-AudioManager.load('question',  '/assets/music/question.mp3');
-AudioManager.load('correct',   '/assets/music/correct.mp3');
-AudioManager.load('incorrect', '/assets/music/incorrect.mp3');
-AudioManager.load('podium',    '/assets/music/podium.mp3');
+AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
+AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
+AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
 
 const EMOJIS = [
   '🐶','🐱','🐼','🦊','🐨',
@@ -148,7 +146,6 @@ function submitAvatar() {
 
 socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
   if (status === 'lobby') {
-    AudioManager.play('lobby', true);
     showScreen('lobby');
     const lobbyAvatar = document.getElementById('lobby-avatar');
     lobbyAvatar.style.backgroundColor = playerColor;
@@ -156,7 +153,6 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     document.getElementById('lobby-nickname').textContent = playerNickname;
   }
   if (status === 'playing') {
-    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
@@ -173,8 +169,7 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 });
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
-  AudioManager.stop('question');
-  AudioManager.play(correct ? 'correct' : 'incorrect');
+  AudioManager.stop('tick-tock');
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
 });
 
@@ -182,7 +177,8 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit }) => {
   clearInterval(timerInterval);
-  AudioManager.play('question', true);
+  AudioManager.stop('tick-tock');
+  AudioManager.play('game-start');
   playerAnswer = null;
   currentOptions = options;
 
@@ -217,6 +213,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     const pct = Math.max(0, (remaining / timeLimit) * 100);
     bar.style.transition = 'width 1s linear';
     bar.style.width = pct + '%';
+    if (remaining === 5) AudioManager.play('tick-tock');
     if (remaining <= 0) clearInterval(timerInterval);
   }, 1000);
 
@@ -225,10 +222,8 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
 
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
   clearInterval(timerInterval);
-  if (!lastAnswerResult.didAnswer) {
-    AudioManager.stop('question');
-    AudioManager.play('incorrect');
-  }
+  AudioManager.stop('tick-tock');
+  AudioManager.play('applause');
 
   const { correct, scoreDelta, totalScore, didAnswer } = lastAnswerResult;
   const screen = document.getElementById('screen-result');
@@ -248,7 +243,7 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
 
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
-  AudioManager.play('podium', true);
+  AudioManager.play('applause');
   const rank = players.findIndex(p => p.nickname === playerNickname) + 1;
   const me   = players.find(p => p.nickname === playerNickname);
   document.getElementById('podium-score').textContent = me ? `${me.score.toLocaleString()} pts` : '';
