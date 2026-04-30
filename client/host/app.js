@@ -48,13 +48,10 @@ function showScreen(name) {
     gamePin = pin;
     document.getElementById('lobby-pin').textContent = pin;
 
-    new QRCode(document.getElementById('qr-code'), {
-      text: `${location.origin}/player`,
-      width: 160,
-      height: 160,
-      colorDark: '#ffffff',
-      colorLight: '#1f2937',
-    });
+    QRCode.toDataURL(`${location.origin}/player`, {
+      width: 160, margin: 1,
+      color: { dark: '#ffffff', light: '#1f2937' },
+    }).then(url => { document.getElementById('qr-code').src = url; });
 
     socket.emit('HOST_REGISTER', { pin });
 

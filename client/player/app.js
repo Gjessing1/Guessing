@@ -20,9 +20,10 @@ let gamePin        = null;
 let playerNickname = '';
 let playerEmoji    = EMOJIS[0];
 let playerColor    = COLORS[0];
-let playerAnswer      = null;  // answerIndex for current question
+let playerAnswer      = null;
 let currentOptions    = [];
 let timerInterval     = null;
+let playerScore       = 0;
 let lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
 
 // ── Screens ───────────────────────────────────────────────────────────────────
@@ -170,7 +171,9 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
   AudioManager.stop('tick-tock');
+  playerScore = totalScore;
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
+  document.getElementById('answered-score').textContent = `${playerScore.toLocaleString()} pts`;
 });
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
@@ -224,7 +227,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   showScreen('question');
 });
 
-socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
+socket.on('RESULTS_BREAKDOWN', ({ correctIndex, players }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
@@ -232,15 +235,18 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex }) => {
   const { correct, scoreDelta, totalScore, didAnswer } = lastAnswerResult;
   const screen = document.getElementById('screen-result');
 
-  document.getElementById('result-icon').textContent  = !didAnswer ? '😴' : correct ? '✅' : '❌';
-  document.getElementById('result-text').textContent  = !didAnswer ? 'Too slow!' : correct ? 'Correct!' : 'Wrong!';
-  document.getElementById('result-answer').textContent = `Answer: ${currentOptions[correctIndex]}`;
-  document.getElementById('result-delta').textContent  = (didAnswer && correct) ? `+${scoreDelta.toLocaleString()} pts` : '';
-  document.getElementById('result-total').textContent  = didAnswer ? `Total: ${totalScore.toLocaleString()} pts` : '';
+  const rank = players ? players.findIndex(p => p.nickname === playerNickname) + 1 : 0;
+  const suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
+
+  document.getElementById('result-icon').textContent     = !didAnswer ? '😴' : correct ? '✅' : '❌';
+  document.getElementById('result-text').textContent     = !didAnswer ? 'Too slow!' : correct ? 'Correct!' : 'Wrong!';
+  document.getElementById('result-answer').textContent   = `Answer: ${currentOptions[correctIndex]}`;
+  document.getElementById('result-delta').textContent    = (didAnswer && correct) ? `+${scoreDelta.toLocaleString()} pts` : '';
+  document.getElementById('result-standing').textContent = rank ? `${rank}${suffix} place` : '';
+  document.getElementById('result-total').textContent    = `${playerScore.toLocaleString()} pts total`;
 
   screen.style.backgroundColor = !didAnswer ? '#111827' : correct ? '#14532d' : '#7f1d1d';
 
-  // Reset for next question
   lastAnswerResult = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
   showScreen('result');
 });
