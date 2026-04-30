@@ -1,5 +1,6 @@
 const socket = io();
 
+AudioManager.load('lobby',      '/assets/music/lobby%20music.mp3');
 AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
 AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
 AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
@@ -147,6 +148,7 @@ function submitAvatar() {
 
 socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
   if (status === 'lobby') {
+    AudioManager.play('lobby', true);
     showScreen('lobby');
     const lobbyAvatar = document.getElementById('lobby-avatar');
     lobbyAvatar.style.backgroundColor = playerColor;
@@ -154,6 +156,7 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     document.getElementById('lobby-nickname').textContent = playerNickname;
   }
   if (status === 'playing') {
+    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {

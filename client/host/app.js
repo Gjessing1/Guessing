@@ -33,6 +33,7 @@ function showScreen(name) {
 (async function init() {
   document.getElementById('join-url').textContent = `${location.host}/player`;
 
+  AudioManager.load('lobby',      '/assets/music/lobby%20music.mp3');
   AudioManager.load('game-start', '/assets/music/foxboytails-game-start-317318.mp3');
   AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
   AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
@@ -48,10 +49,10 @@ function showScreen(name) {
     gamePin = pin;
     document.getElementById('lobby-pin').textContent = pin;
 
-    QRCode.toDataURL(`${location.origin}/player`, {
+    QRCode.toCanvas(document.getElementById('qr-canvas'), `${location.origin}/player`, {
       width: 160, margin: 1,
       color: { dark: '#ffffff', light: '#1f2937' },
-    }).then(url => { document.getElementById('qr-code').src = url; });
+    });
 
     socket.emit('HOST_REGISTER', { pin });
 
@@ -90,7 +91,6 @@ document.getElementById('first-question-btn').addEventListener('click', () => {
 });
 
 socket.on('PLAYER_LIST_UPDATE', (players) => {
-  updateStartBtn();
   const count = players.length;
   document.getElementById('lobby-player-count').textContent =
     count === 0 ? 'Waiting for players…' : `${count} player${count !== 1 ? 's' : ''} joined`;
@@ -107,15 +107,18 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
     `;
     grid.appendChild(card);
   });
+  updateStartBtn();
 });
 
 // ── Game state changes ────────────────────────────────────────────────────────
 
 socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
   if (status === 'lobby') {
+    AudioManager.play('lobby', true);
     showScreen('lobby');
   }
   if (status === 'playing') {
+    AudioManager.stop('lobby');
     showScreen('ready');
   }
   if (status === 'ended') {
