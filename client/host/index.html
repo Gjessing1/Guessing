@@ -42,11 +42,9 @@
         <p class="text-gray-400 text-sm uppercase tracking-widest mb-3">Game PIN</p>
         <p id="lobby-pin" class="text-8xl font-black tracking-widest text-white mb-6">------</p>
         <canvas id="qr-canvas" class="mb-6 rounded-xl"></canvas>
-        <div id="lobby-player-count" class="text-gray-500 mb-6">Waiting for players…</div>
-        <select id="quiz-select"
-          class="w-full max-w-xs bg-gray-800 text-white rounded-xl px-4 py-3 border-2 border-gray-700 focus:border-indigo-500 outline-none mb-6 text-lg">
-          <option value="">— Select a quiz —</option>
-        </select>
+        <div id="lobby-player-count" class="text-gray-500 mb-4">Waiting for players…</div>
+        <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 self-start w-full max-w-xs">Select quiz</p>
+        <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-6"></div>
         <button id="start-btn"
           class="bg-indigo-600 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-indigo-500 text-white text-2xl font-bold py-4 px-16 rounded-2xl transition-colors"
           disabled>

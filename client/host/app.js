@@ -38,11 +38,12 @@ function showScreen(name) {
   AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
   AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
 
-  // Start muted — first click on mute button enables audio (bypasses autoplay policy)
+  // Start muted — clicking the button opts in and starts lobby music
   AudioManager.toggleMute();
-  document.getElementById('mute-btn').addEventListener('click', () => {
+  const muteBtn = document.getElementById('mute-btn');
+  muteBtn.addEventListener('click', () => {
     const muted = AudioManager.toggleMute();
-    document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+    muteBtn.innerHTML = muted ? '🔇' : '🔊';
     if (!muted) AudioManager.resume('lobby');
   });
 
@@ -57,30 +58,30 @@ function showScreen(name) {
       color: { dark: '#ffffff', light: '#1f2937' },
     });
 
-    // Fetch quizzes before registering so the selector is ready when lobby shows
+    // Fetch quizzes before registering so cards are ready when lobby shows
     const quizRes = await fetch('/api/quizzes');
     const quizzes = await quizRes.json();
-    const select = document.getElementById('quiz-select');
+    const cardsEl = document.getElementById('quiz-cards');
 
     if (quizzes.length === 0) {
-      select.innerHTML = '<option value="">No quizzes — create one at /admin</option>';
+      cardsEl.innerHTML = '<p class="text-red-400 text-sm text-center py-2">No quizzes yet — create one at /admin</p>';
     } else {
       quizzes.forEach(({ id, title, questionCount }) => {
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = `${title} (${questionCount} questions)`;
-        select.appendChild(opt);
+        const card = document.createElement('button');
+        card.className = 'w-full text-left bg-gray-800 hover:bg-gray-700 border-2 border-transparent rounded-xl px-4 py-3 transition-colors';
+        card.innerHTML = `<p class="font-bold">${title}</p><p class="text-gray-400 text-xs">${questionCount} question${questionCount !== 1 ? 's' : ''}</p>`;
+        card.addEventListener('click', () => {
+          cardsEl.querySelectorAll('button').forEach(b => {
+            b.classList.remove('border-indigo-500', 'bg-indigo-900');
+          });
+          card.classList.add('border-indigo-500', 'bg-indigo-900');
+          selectedQuizId = id;
+          updateStartBtn();
+        });
+        cardsEl.appendChild(card);
       });
-      if (quizzes.length === 1) {
-        select.value = quizzes[0].id;
-        selectedQuizId = quizzes[0].id;
-      }
+      if (quizzes.length === 1) cardsEl.querySelector('button').click();
     }
-
-    select.addEventListener('change', () => {
-      selectedQuizId = select.value || null;
-      updateStartBtn();
-    });
 
     socket.emit('HOST_REGISTER', { pin });
   } catch {
