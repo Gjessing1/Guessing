@@ -1,5 +1,6 @@
 const path = require('path');
 const multer = require('multer');
+const QRCode = require('qrcode');
 const quizStore = require('../quiz/quizStore');
 const { createRoom, getRoom } = require('../game/roomManager');
 
@@ -34,9 +35,14 @@ function routes(app) {
 
   // ── Room routes ───────────────────────────────────────────────────────────────
 
-  app.post('/api/rooms', (req, res) => {
+  app.post('/api/rooms', async (req, res) => {
     const room = createRoom();
-    res.json({ pin: room.pin });
+    const playerUrl = `${req.protocol}://${req.get('host')}/player`;
+    const qr = await QRCode.toDataURL(playerUrl, {
+      width: 160, margin: 1,
+      color: { dark: '#ffffff', light: '#1f2937' },
+    });
+    res.json({ pin: room.pin, qr });
   });
 
   app.get('/api/rooms/:pin', (req, res) => {

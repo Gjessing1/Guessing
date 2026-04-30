@@ -49,9 +49,10 @@ function showScreen(name) {
 
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
-    const { pin } = await res.json();
+    const { pin, qr } = await res.json();
     gamePin = pin;
     document.getElementById('lobby-pin').textContent = pin;
+    document.getElementById('qr-img').src = qr;
 
     // Fetch quizzes before registering so cards are ready when lobby shows
     const quizRes = await fetch('/api/quizzes');
@@ -79,16 +80,6 @@ function showScreen(name) {
     }
 
     socket.emit('HOST_REGISTER', { pin });
-
-    // QR code is non-critical — render after registration
-    try {
-      QRCode.toCanvas(document.getElementById('qr-canvas'), `${location.origin}/player`, {
-        width: 160, margin: 1,
-        color: { dark: '#ffffff', light: '#1f2937' },
-      });
-    } catch (e) {
-      console.warn('QR code unavailable:', e);
-    }
   } catch (err) {
     console.error('Host init failed:', err);
     document.body.innerHTML = `<p class="text-red-400 text-center mt-20 text-2xl">Could not connect to server</p><p class="text-gray-500 text-center mt-2">${err.message}</p>`;

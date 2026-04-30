@@ -41,7 +41,7 @@
       <div class="flex flex-col items-center flex-1 px-12 py-8 border-r border-gray-800 overflow-y-auto">
         <p class="text-gray-400 text-sm uppercase tracking-widest mb-3">Game PIN</p>
         <p id="lobby-pin" class="text-8xl font-black tracking-widest text-white mb-6">------</p>
-        <canvas id="qr-canvas" class="mb-6 rounded-xl"></canvas>
+        <img id="qr-img" class="mb-6 rounded-xl" width="160" height="160" src="" alt="QR Code">
         <div id="lobby-player-count" class="text-gray-500 mb-4">Waiting for players…</div>
         <p class="text-gray-400 text-xs uppercase tracking-wider mb-2 self-start w-full max-w-xs">Select quiz</p>
         <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-6"></div>
@@ -142,7 +142,6 @@
     </button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
   <script src="/audio.js"></script>
   <script src="app.js"></script>
