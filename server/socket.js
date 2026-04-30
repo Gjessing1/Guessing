@@ -1,5 +1,5 @@
 const rm = require('./game/roomManager');
-const sampleQuiz = require('../data/sample.json');
+const quizStore = require('./quiz/quizStore');
 
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
@@ -24,13 +24,16 @@ function registerSocketHandlers(io) {
       socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
     });
 
-    socket.on('GAME_START', ({ pin }) => {
+    socket.on('GAME_START', ({ pin, quizId }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
       if (room.players.size === 0) return socket.emit('ERROR', { message: 'No players in room' });
 
+      const quiz = quizStore.get(quizId);
+      if (!quiz) return socket.emit('ERROR', { message: 'Select a quiz before starting' });
+
       room.status = 'playing';
-      rm.loadQuiz(pin, sampleQuiz);
+      rm.loadQuiz(pin, quiz);
       io.to(pin).emit('GAME_STATE_CHANGE', { status: 'playing' });
     });
 
@@ -58,6 +61,7 @@ function registerSocketHandlers(io) {
           text: q.text,
           options: q.options,
           timeLimit: q.timeLimit,
+          image: q.image || null,
         });
 
       } else if (room.questionPhase === 'question') {

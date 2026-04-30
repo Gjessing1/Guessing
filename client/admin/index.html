@@ -7,10 +7,144 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-  <main id="app">
-    <!-- Phase 4: Quiz CRUD editor -->
-    <p class="text-2xl text-gray-400 text-center mt-20">Admin editor — coming in Phase 4</p>
-  </main>
+
+  <!-- Screen: Login -->
+  <div id="screen-login" class="min-h-screen flex items-center justify-center px-4">
+    <div class="bg-gray-800 rounded-2xl p-8 w-full max-w-sm">
+      <h1 class="text-2xl font-black mb-1">Guessing</h1>
+      <p class="text-gray-400 text-sm mb-6">Admin access</p>
+      <input id="password-input" type="password" placeholder="Admin password" autocomplete="current-password"
+        class="w-full bg-gray-700 rounded-xl p-3 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-2 text-base">
+      <p id="login-error" class="text-red-400 text-sm mb-4 h-4"></p>
+      <button id="login-btn"
+        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
+        Sign In
+      </button>
+    </div>
+  </div>
+
+  <!-- Screen: Quiz List -->
+  <div id="screen-list" class="hidden min-h-screen flex flex-col">
+    <header class="flex items-center justify-between px-8 py-5 border-b border-gray-800">
+      <h1 class="text-2xl font-black tracking-tight">Quizzes</h1>
+      <div class="flex items-center gap-3">
+        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl transition-colors text-sm">
+          Import JSON
+          <input id="import-file" type="file" accept=".json" class="hidden">
+        </label>
+        <button id="new-quiz-btn"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-colors text-sm">
+          + New Quiz
+        </button>
+      </div>
+    </header>
+    <div id="quiz-list" class="flex-1 px-8 py-6 space-y-3"></div>
+    <p id="list-empty" class="hidden text-center text-gray-500 mt-20">No quizzes yet. Create one!</p>
+  </div>
+
+  <!-- Screen: Quiz Editor -->
+  <div id="screen-editor" class="hidden min-h-screen flex flex-col">
+    <header class="flex items-center gap-4 px-8 py-5 border-b border-gray-800">
+      <button id="back-btn" class="text-gray-400 hover:text-white transition-colors text-xl font-bold">←</button>
+      <input id="quiz-title" type="text" placeholder="Quiz title" maxlength="80"
+        class="flex-1 bg-transparent text-2xl font-black outline-none border-b-2 border-transparent focus:border-indigo-500 pb-1 transition-colors">
+      <button id="export-btn"
+        class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl transition-colors text-sm">
+        Export JSON
+      </button>
+      <button id="save-btn"
+        class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-colors text-sm">
+        Save
+      </button>
+    </header>
+    <div id="question-list" class="flex-1 px-8 py-4 space-y-2 overflow-y-auto"></div>
+    <div class="px-8 py-5 border-t border-gray-800">
+      <button id="add-question-btn"
+        class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+        + Add Question
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Question Editor -->
+  <div id="modal-question" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+      <h2 id="modal-title" class="text-xl font-black mb-5">Add Question</h2>
+
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Question text</label>
+      <textarea id="q-text" rows="3" placeholder="Enter your question…"
+        class="w-full bg-gray-700 rounded-xl p-3 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4 resize-none text-base"></textarea>
+
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Answer options</label>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded bg-red-600 flex items-center justify-center text-xs font-black flex-shrink-0">A</span>
+          <input id="q-opt-a" type="text" placeholder="Option A"
+            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-xs font-black flex-shrink-0">B</span>
+          <input id="q-opt-b" type="text" placeholder="Option B"
+            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-xs font-black flex-shrink-0">C</span>
+          <input id="q-opt-c" type="text" placeholder="Option C"
+            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded bg-green-600 flex items-center justify-center text-xs font-black flex-shrink-0">D</span>
+          <input id="q-opt-d" type="text" placeholder="Option D"
+            class="flex-1 bg-gray-700 rounded-lg p-2 border border-gray-600 focus:border-indigo-500 outline-none text-sm">
+        </div>
+      </div>
+
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Correct answer</label>
+      <div class="flex gap-3 mb-4">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="q-correct" value="0" class="accent-red-500"> A
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="q-correct" value="1" class="accent-blue-500"> B
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="q-correct" value="2" class="accent-yellow-500"> C
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="q-correct" value="3" class="accent-green-500"> D
+        </label>
+      </div>
+
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Time limit (seconds)</label>
+      <input id="q-time" type="number" min="5" max="120" value="20"
+        class="w-28 bg-gray-700 rounded-xl p-2 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4">
+
+      <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Image (optional)</label>
+      <div class="flex items-center gap-3 mb-2">
+        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 font-semibold py-2 px-4 rounded-xl transition-colors text-sm">
+          Upload image
+          <input id="q-image-input" type="file" accept="image/*" class="hidden">
+        </label>
+        <button id="q-image-remove" class="hidden text-red-400 hover:text-red-300 text-sm">Remove</button>
+        <span id="q-image-uploading" class="hidden text-gray-400 text-sm">Uploading…</span>
+      </div>
+      <img id="q-image-preview" class="hidden max-h-36 rounded-xl object-contain mb-4" src="" alt="">
+
+      <p id="modal-error" class="text-red-400 text-sm mb-3 h-4"></p>
+
+      <div class="flex gap-3 justify-end pt-2 border-t border-gray-700">
+        <button id="modal-cancel"
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-5 rounded-xl transition-colors">
+          Cancel
+        </button>
+        <button id="modal-save"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-5 rounded-xl transition-colors">
+          Save Question
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

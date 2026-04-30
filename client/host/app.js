@@ -6,6 +6,7 @@ const OPTION_HEX     = ['#dc2626', '#2563eb', '#ca8a04', '#16a34a'];
 const TIMER_CIRC     = 263.9; // 2π × r=42
 
 let gamePin = null;
+let selectedQuizId = null;
 let timerInterval = null;
 let timerTotal = 0;
 let currentQuestionNumber = 0;
@@ -56,6 +57,21 @@ function showScreen(name) {
     });
 
     socket.emit('HOST_REGISTER', { pin });
+
+    // Populate quiz selector
+    const quizRes = await fetch('/api/quizzes');
+    const quizzes = await quizRes.json();
+    const select = document.getElementById('quiz-select');
+    quizzes.forEach(({ id, title, questionCount }) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${title} (${questionCount} questions)`;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', () => {
+      selectedQuizId = select.value || null;
+      updateStartBtn();
+    });
   } catch {
     document.body.innerHTML = '<p class="text-red-400 text-center mt-20 text-2xl">Could not connect to server</p>';
   }
@@ -63,8 +79,13 @@ function showScreen(name) {
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 
+function updateStartBtn() {
+  const hasPlayers = document.getElementById('player-grid').children.length > 0;
+  document.getElementById('start-btn').disabled = !hasPlayers || !selectedQuizId;
+}
+
 document.getElementById('start-btn').addEventListener('click', () => {
-  socket.emit('GAME_START', { pin: gamePin });
+  socket.emit('GAME_START', { pin: gamePin, quizId: selectedQuizId });
 });
 
 document.getElementById('first-question-btn').addEventListener('click', () => {
@@ -72,9 +93,7 @@ document.getElementById('first-question-btn').addEventListener('click', () => {
 });
 
 socket.on('PLAYER_LIST_UPDATE', (players) => {
-  const startBtn = document.getElementById('start-btn');
-  startBtn.disabled = players.length === 0;
-
+  updateStartBtn();
   const count = players.length;
   document.getElementById('lobby-player-count').textContent =
     count === 0 ? 'Waiting for players…' : `${count} player${count !== 1 ? 's' : ''} joined`;
@@ -110,7 +129,7 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
 
 // ── Question ──────────────────────────────────────────────────────────────────
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit }) => {
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, options, timeLimit, image }) => {
   AudioManager.stop('tick-tock');
   AudioManager.play('game-start');
   currentQuestionNumber = questionNumber;
@@ -118,6 +137,10 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, optio
 
   document.getElementById('q-label').textContent = `Question ${questionNumber} of ${total}`;
   document.getElementById('q-text').textContent = text;
+
+  const img = document.getElementById('q-image');
+  if (image) { img.src = image; img.classList.remove('hidden'); }
+  else { img.classList.add('hidden'); img.src = ''; }
   document.getElementById('answer-count').textContent = `0 / ${document.querySelectorAll('#player-grid > div').length || '?'} answered`;
   document.getElementById('answer-bar').style.width = '0%';
 

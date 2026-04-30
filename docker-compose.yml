@@ -6,6 +6,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+    volumes:
+      - guessing_data:/app/data
     restart: unless-stopped
 
   caddy:
@@ -25,3 +27,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  guessing_data:

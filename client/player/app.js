@@ -175,7 +175,7 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit }) => {
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('game-start');
@@ -184,6 +184,10 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
 
   document.getElementById('q-number').textContent = `Question ${questionNumber} of ${totalQuestions}`;
   document.getElementById('q-text').textContent = text;
+
+  const img = document.getElementById('q-image');
+  if (image) { img.src = image; img.classList.remove('hidden'); }
+  else { img.classList.add('hidden'); img.src = ''; }
   document.getElementById('q-timer-display').textContent = timeLimit;
 
   const grid = document.getElementById('q-options');

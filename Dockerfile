@@ -9,7 +9,7 @@ COPY server.js ./
 COPY server/ ./server/
 COPY client/ ./client/
 COPY public/ ./public/
-COPY data/sample.json ./data/
+COPY data/ ./data/
 
 EXPOSE 3000
 
