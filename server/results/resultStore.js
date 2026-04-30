@@ -54,4 +54,14 @@ function countByQuizId() {
   return counts;
 }
 
-module.exports = { save, list, get, remove, countByQuizId };
+function lastPlayedByQuizId() {
+  const latest = {};
+  for (const r of read().results) {
+    if (r.quizId && (!latest[r.quizId] || r.playedAt > latest[r.quizId])) {
+      latest[r.quizId] = r.playedAt;
+    }
+  }
+  return latest;
+}
+
+module.exports = { save, list, get, remove, countByQuizId, lastPlayedByQuizId };

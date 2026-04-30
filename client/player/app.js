@@ -35,14 +35,16 @@ let lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswe
 
 const screens = {
   pin:      document.getElementById('screen-pin'),
-  avatar:   document.getElementById('screen-avatar'),
-  lobby:    document.getElementById('screen-lobby'),
-  ready:    document.getElementById('screen-ready'),
-  slide:    document.getElementById('screen-slide'),
-  question: document.getElementById('screen-question'),
-  answered: document.getElementById('screen-answered'),
-  result:   document.getElementById('screen-result'),
-  podium:   document.getElementById('screen-podium'),
+  avatar:    document.getElementById('screen-avatar'),
+  lobby:     document.getElementById('screen-lobby'),
+  ready:     document.getElementById('screen-ready'),
+  slide:     document.getElementById('screen-slide'),
+  wordcloud: document.getElementById('screen-wordcloud'),
+  droppin:   document.getElementById('screen-droppin'),
+  question:  document.getElementById('screen-question'),
+  answered:  document.getElementById('screen-answered'),
+  result:    document.getElementById('screen-result'),
+  podium:    document.getElementById('screen-podium'),
 };
 
 const REACTION_SCREENS = new Set(['lobby', 'answered', 'result']);
@@ -191,7 +193,8 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
   clearInterval(timerInterval);
-  playerAnswer = null;
+  playerAnswer   = null;
+  pendingCoords  = null;
   currentOptions = options;
 
   // Slide: just show content, no timer or answers
@@ -201,6 +204,52 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     else { img.classList.add('hidden'); img.src = ''; }
     document.getElementById('slide-text').textContent = text;
     showScreen('slide');
+    return;
+  }
+
+  // Word Cloud: free-text input with countdown
+  if (type === 'wordcloud') {
+    document.getElementById('wc-number').textContent = `Question ${questionNumber} of ${totalQuestions} ☁️`;
+    document.getElementById('wc-text').textContent = text;
+    document.getElementById('wc-input').value = '';
+    document.getElementById('wc-timer').textContent = timeLimit;
+    const wcBar = document.getElementById('wc-timer-bar');
+    wcBar.style.transition = 'none'; wcBar.style.width = '100%';
+    let wcRemaining = timeLimit;
+    timerInterval = setInterval(() => {
+      wcRemaining--;
+      document.getElementById('wc-timer').textContent = wcRemaining;
+      const pct = Math.max(0, (wcRemaining / timeLimit) * 100);
+      wcBar.style.transition = 'width 1s linear'; wcBar.style.width = pct + '%';
+      if (wcRemaining <= 0) clearInterval(timerInterval);
+    }, 1000);
+    showScreen('wordcloud');
+    return;
+  }
+
+  // Drop Pin: tap-on-image with countdown
+  if (type === 'droppin') {
+    document.getElementById('dp-number').textContent = `Question ${questionNumber} of ${totalQuestions} 📍`;
+    document.getElementById('dp-text').textContent = text;
+    document.getElementById('dp-timer').textContent = timeLimit;
+    const dpImg = document.getElementById('dp-image');
+    if (image) { dpImg.src = image; dpImg.classList.remove('hidden'); }
+    else { dpImg.classList.add('hidden'); dpImg.src = ''; }
+    document.getElementById('dp-bg').style.display = '';
+    document.getElementById('dp-marker').classList.add('hidden');
+    document.getElementById('dp-confirm').disabled = true;
+    document.getElementById('dp-confirm').textContent = 'Tap the image first';
+    const dpBar = document.getElementById('dp-timer-bar');
+    dpBar.style.transition = 'none'; dpBar.style.width = '100%';
+    let dpRemaining = timeLimit;
+    timerInterval = setInterval(() => {
+      dpRemaining--;
+      document.getElementById('dp-timer').textContent = dpRemaining;
+      const pct = Math.max(0, (dpRemaining / timeLimit) * 100);
+      dpBar.style.transition = 'width 1s linear'; dpBar.style.width = pct + '%';
+      if (dpRemaining <= 0) clearInterval(timerInterval);
+    }, 1000);
+    showScreen('droppin');
     return;
   }
 
@@ -259,6 +308,53 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   showScreen('question');
 });
 
+// ── Word Cloud submit ─────────────────────────────────────────────────────────
+
+document.getElementById('wc-submit').addEventListener('click', () => {
+  const word = document.getElementById('wc-input').value.trim();
+  if (!word || playerAnswer !== null) return;
+  playerAnswer = word;
+  AudioManager.play('submit');
+  socket.emit('ANSWER_SUBMIT', { pin: gamePin, word });
+  showScreen('answered');
+});
+
+document.getElementById('wc-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('wc-submit').click();
+});
+
+// ── Drop Pin tap + confirm ────────────────────────────────────────────────────
+
+let pendingCoords = null;
+
+document.getElementById('dp-area').addEventListener('click', (e) => {
+  if (playerAnswer !== null) return;
+  const area = document.getElementById('dp-area');
+  const rect = area.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top)  / rect.height;
+  pendingCoords = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+
+  const marker = document.getElementById('dp-marker');
+  marker.style.left = `${x * 100}%`;
+  marker.style.top  = `${y * 100}%`;
+  marker.classList.remove('hidden');
+  document.getElementById('dp-bg').style.display = 'none';
+
+  const btn = document.getElementById('dp-confirm');
+  btn.disabled = false;
+  btn.textContent = 'Confirm pin';
+});
+
+document.getElementById('dp-confirm').addEventListener('click', () => {
+  if (!pendingCoords || playerAnswer !== null) return;
+  playerAnswer = pendingCoords;
+  AudioManager.play('submit');
+  socket.emit('ANSWER_SUBMIT', { pin: gamePin, coords: pendingCoords });
+  pendingCoords = null;
+  showScreen('answered');
+});
+
 socket.on('RESULTS_BREAKDOWN', ({ correctIndex, players }) => {
   clearInterval(timerInterval);
 
@@ -268,15 +364,55 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, players }) => {
   const rank = players ? players.findIndex(p => p.nickname === playerNickname) + 1 : 0;
   const suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
 
-  document.getElementById('result-icon').textContent     = !didAnswer ? '😴' : correct ? '✅' : '❌';
-  document.getElementById('result-text').textContent     = !didAnswer ? 'Too slow!' : correct ? 'Correct!' : 'Wrong!';
-  document.getElementById('result-answer').textContent   = `Answer: ${currentOptions[correctIndex]}`;
-  document.getElementById('result-delta').textContent    = (didAnswer && correct) ? `+${scoreDelta.toLocaleString()} pts` : '';
-  document.getElementById('result-standing').textContent = rank ? `${rank}${suffix} place` : '';
-  document.getElementById('result-total').textContent    = `${playerScore.toLocaleString()} pts total`;
+  const isPoll = correctIndex === -1;
+  if (isPoll) {
+    document.getElementById('result-icon').textContent     = !didAnswer ? '😴' : '📊';
+    document.getElementById('result-text').textContent     = !didAnswer ? 'No vote recorded' : 'Vote counted!';
+    document.getElementById('result-answer').textContent   = '';
+    document.getElementById('result-delta').textContent    = '';
+    document.getElementById('result-standing').textContent = '';
+    document.getElementById('result-total').textContent    = '';
+    screen.style.backgroundColor = '#111827';
+  } else {
+    document.getElementById('result-icon').textContent     = !didAnswer ? '😴' : correct ? '✅' : '❌';
+    document.getElementById('result-text').textContent     = !didAnswer ? 'Too slow!' : correct ? 'Correct!' : 'Wrong!';
+    document.getElementById('result-answer').textContent   = correctIndex >= 0 ? `Answer: ${currentOptions[correctIndex]}` : '';
+    document.getElementById('result-delta').textContent    = (didAnswer && correct) ? `+${scoreDelta.toLocaleString()} pts` : '';
+    document.getElementById('result-standing').textContent = rank ? `${rank}${suffix} place` : '';
+    document.getElementById('result-total').textContent    = `${playerScore.toLocaleString()} pts total`;
+    screen.style.backgroundColor = !didAnswer ? '#111827' : correct ? '#14532d' : '#7f1d1d';
+  }
 
-  screen.style.backgroundColor = !didAnswer ? '#111827' : correct ? '#14532d' : '#7f1d1d';
+  lastAnswerResult = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
+  showScreen('result');
+});
 
+socket.on('WORDCLOUD_RESULTS', () => {
+  clearInterval(timerInterval);
+  const { didAnswer } = lastAnswerResult;
+  const screen = document.getElementById('screen-result');
+  document.getElementById('result-icon').textContent     = didAnswer ? '☁️' : '😴';
+  document.getElementById('result-text').textContent     = didAnswer ? 'Word submitted!' : 'No response';
+  document.getElementById('result-answer').textContent   = '';
+  document.getElementById('result-delta').textContent    = '';
+  document.getElementById('result-standing').textContent = '';
+  document.getElementById('result-total').textContent    = '';
+  screen.style.backgroundColor = '#111827';
+  lastAnswerResult = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
+  showScreen('result');
+});
+
+socket.on('DROPPIN_RESULTS', () => {
+  clearInterval(timerInterval);
+  const { didAnswer } = lastAnswerResult;
+  const screen = document.getElementById('screen-result');
+  document.getElementById('result-icon').textContent     = didAnswer ? '📍' : '😴';
+  document.getElementById('result-text').textContent     = didAnswer ? 'Pin placed!' : 'No pin placed';
+  document.getElementById('result-answer').textContent   = '';
+  document.getElementById('result-delta').textContent    = '';
+  document.getElementById('result-standing').textContent = '';
+  document.getElementById('result-total').textContent    = '';
+  screen.style.backgroundColor = '#111827';
   lastAnswerResult = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
   showScreen('result');
 });
@@ -288,7 +424,51 @@ socket.on('FINAL_PODIUM', ({ players }) => {
   document.getElementById('podium-score').textContent = me ? `${me.score.toLocaleString()} pts` : '';
   document.getElementById('podium-rank').textContent  = rank ? `#${rank} of ${players.length}` : '';
   showScreen('podium');
+  launchConfetti();
 });
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.classList.remove('hidden');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  const colors = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#a855f7','#fbbf24'];
+  const particles = Array.from({ length: 100 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height * 0.6,
+    w: Math.random() * 10 + 6,
+    h: Math.random() * 6 + 4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    speed: Math.random() * 3 + 2,
+    drift: (Math.random() - 0.5) * 1.5,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.12,
+  }));
+
+  const end = Date.now() + 5500;
+  (function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of particles) {
+      p.y   += p.speed;
+      p.x   += p.drift;
+      p.rot += p.rotSpeed;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (Date.now() < end) {
+      requestAnimationFrame(draw);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.add('hidden');
+    }
+  })();
+}
 
 socket.on('ERROR', ({ message }) => {
   if (!screens.pin.classList.contains('hidden'))    showError(pinError, message);

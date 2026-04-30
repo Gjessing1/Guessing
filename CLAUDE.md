@@ -133,3 +133,23 @@
 - [x] Results tab in admin: history list with date, quiz name, player count
 - [x] Per-game detail: final standings + per-question correct % bar chart
 - [x] Export game result as CSV (standings + question stats, Excel-compatible)
+
+### Phase 11: General improvements ✅
+- [x] Player view: safe-area padding + dvh height so content never hides behind address bar, notch, or home indicator
+- [x] Admin editor: "+ Add Question" moved to top; Export JSON + Save wrap to a second row on mobile so they're always on-screen; modal padding tightened on small screens
+- [x] All uploaded images converted to JPEG via sharp (supports HEIC, AVIF, WebP, BMP, TIFF, SVG, HEIF); EXIF rotation auto-corrected; upload limit raised to 10 MB raw
+- [x] Quiz list sortable by Newest / Oldest / Last played / A–Z (default: Newest); preference persisted in localStorage; last-played date shown on each card
+- [x] Canvas confetti rains on final podium (host + player); top-3 players slide in with staggered animation on host screen (2nd → 1st → 3rd podium-block layout)
+- [x] Poll question type (📊): multiple choice, no correct answer, all bars full opacity, player sees "Vote counted!"; Word Cloud (☁️): players type a word, host sees live tag cloud sized by frequency; Drop Pin (📍): players tap an image to place a pin, host sees all emoji pins overlaid on image
+
+### Phase 12: Polish & Power Features
+- [ ] Host can skip / end question early (override timer with "Skip" button alongside "Show Results")
+- [ ] Player nickname sanitisation — strip HTML so a crafted nickname can't inject markup into host screen
+- [ ] Team mode — players choose a team colour at avatar screen; scoring aggregated per team on leaderboard
+- [ ] Question time-per-question stats in game results (average answer time, not just correct %)
+- [ ] Admin: preview a quiz as host before going live (read-only dry run)
+- [ ] Sound effects pack toggle — host can switch between Default, Silent, and Party modes
+- [ ] Lobby music auto-stops when host clicks Start (currently there is a brief overlap)
+- [ ] Share-game link in host lobby — one-tap copy of the join URL for pasting into chat
+- [ ] Delete game result from the Results detail view (currently only deletable from list)
+- [ ] Open-text answer type: players type a short answer, host sees all responses as a list (no auto-grading)

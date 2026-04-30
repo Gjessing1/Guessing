@@ -107,9 +107,31 @@ function getAnswerCounts(room) {
   const optionCount = room.quiz?.questions[room.currentQuestionIndex]?.options?.length || 4;
   const counts = Array(optionCount).fill(0);
   for (const idx of room.currentAnswers.values()) {
-    if (idx >= 0 && idx < optionCount) counts[idx]++;
+    if (typeof idx === 'number' && idx >= 0 && idx < optionCount) counts[idx]++;
   }
   return counts;
+}
+
+function getWordCounts(room) {
+  const counts = {};
+  for (const answer of room.currentAnswers.values()) {
+    if (typeof answer === 'string' && answer.trim()) {
+      const key = answer.trim().toLowerCase();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+function getPinCoords(room) {
+  const result = [];
+  for (const [socketId, answer] of room.currentAnswers.entries()) {
+    if (answer && typeof answer === 'object' && typeof answer.x === 'number') {
+      const player = room.players.get(socketId);
+      if (player) result.push({ x: answer.x, y: answer.y, emoji: player.emoji, color: player.color });
+    }
+  }
+  return result;
 }
 
 function getAnswerCount(room) {
@@ -159,6 +181,8 @@ module.exports = {
   recordAnswer,
   getAnswerCounts,
   getAnswerCount,
+  getWordCounts,
+  getPinCoords,
   getPlayerList,
   getLeaderboard,
   calcScore,

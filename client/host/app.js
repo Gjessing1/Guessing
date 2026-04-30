@@ -16,12 +16,14 @@ let isLastQuestion = false;
 // ── Screens ───────────────────────────────────────────────────────────────────
 
 const screens = {
-  lobby:    document.getElementById('screen-lobby'),
-  ready:    document.getElementById('screen-ready'),
-  slide:    document.getElementById('screen-slide'),
-  question: document.getElementById('screen-question'),
-  results:  document.getElementById('screen-results'),
-  podium:   document.getElementById('screen-podium'),
+  lobby:     document.getElementById('screen-lobby'),
+  ready:     document.getElementById('screen-ready'),
+  slide:     document.getElementById('screen-slide'),
+  question:  document.getElementById('screen-question'),
+  results:   document.getElementById('screen-results'),
+  wordcloud: document.getElementById('screen-wordcloud'),
+  droppin:   document.getElementById('screen-droppin'),
+  podium:    document.getElementById('screen-podium'),
 };
 
 function showScreen(name) {
@@ -246,8 +248,9 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast })
   const barsEl = document.getElementById('results-bars');
   barsEl.innerHTML = '';
 
+  const isPoll = correctIndex === -1;
   answerCounts.forEach((count, i) => {
-    const isCorrect = i === correctIndex;
+    const isCorrect = !isPoll && i === correctIndex;
     const widthPct = Math.round((count / maxCount) * 100);
     const row = document.createElement('div');
     row.className = 'flex items-center gap-4';
@@ -255,7 +258,7 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast })
       <div class="w-8 text-center font-black text-lg opacity-70">${['A','B','C','D'][i]}</div>
       <div class="flex-1 bg-gray-800 rounded-xl h-14 relative overflow-hidden">
         <div class="h-full rounded-xl transition-all duration-700 ${OPTION_COLORS[i]}"
-             style="width:${widthPct}%;opacity:${isCorrect ? 1 : 0.5}"></div>
+             style="width:${widthPct}%;opacity:${isPoll || isCorrect ? 1 : 0.5}"></div>
         <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg">${options[i] || ''}</span>
         <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold">${count}</span>
       </div>
@@ -293,6 +296,75 @@ document.getElementById('next-btn').addEventListener('click', () => {
   socket.emit('NEXT_QUESTION', { pin: gamePin });
 });
 
+socket.on('WORDCLOUD_RESULTS', ({ wordCounts, isLast }) => {
+  clearInterval(timerInterval);
+  AudioManager.stop('tick-tock');
+  AudioManager.play('applause');
+  isLastQuestion = isLast;
+
+  document.getElementById('wc-label').textContent =
+    `Question ${currentQuestionNumber} of ${totalQuestions} — Word Cloud`;
+  document.getElementById('wc-q-text').textContent =
+    document.getElementById('q-text').textContent;
+
+  const entries = Object.entries(wordCounts).sort((a, b) => b[1] - a[1]);
+  const maxCount = entries[0]?.[1] || 1;
+  const colors = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#a855f7','#ef4444','#fbbf24'];
+  const cloud = document.getElementById('wc-cloud');
+  cloud.innerHTML = '';
+  entries.forEach(([word, count], idx) => {
+    const span = document.createElement('span');
+    const size = 16 + Math.round((count / maxCount) * 52);
+    span.style.cssText = `font-size:${size}px;font-weight:900;color:${colors[idx % colors.length]};padding:4px 6px;`;
+    span.textContent = word;
+    cloud.appendChild(span);
+  });
+
+  const total = Object.values(wordCounts).reduce((s, c) => s + c, 0);
+  document.getElementById('wc-count').textContent = `${total} response${total !== 1 ? 's' : ''}`;
+  document.getElementById('wc-next-btn').textContent = isLast ? 'See Final Scores →' : 'Next Question →';
+  showScreen('wordcloud');
+});
+
+document.getElementById('wc-next-btn').addEventListener('click', () => {
+  socket.emit('NEXT_QUESTION', { pin: gamePin });
+});
+
+socket.on('DROPPIN_RESULTS', ({ pins, image, isLast }) => {
+  clearInterval(timerInterval);
+  AudioManager.stop('tick-tock');
+  AudioManager.play('applause');
+  isLastQuestion = isLast;
+
+  document.getElementById('dp-label').textContent =
+    `Question ${currentQuestionNumber} of ${totalQuestions} — Drop Pin`;
+  document.getElementById('dp-q-text').textContent =
+    document.getElementById('q-text').textContent;
+
+  const imgEl = document.getElementById('dp-image');
+  if (image) { imgEl.src = image; imgEl.classList.remove('hidden'); }
+  else { imgEl.classList.add('hidden'); imgEl.src = ''; }
+
+  const pinsEl = document.getElementById('dp-pins');
+  pinsEl.innerHTML = '';
+  pins.forEach(({ x, y, emoji, color }) => {
+    const dot = document.createElement('div');
+    dot.className = 'absolute flex items-center justify-center text-lg rounded-full shadow-lg border-2 border-white w-9 h-9';
+    dot.style.cssText = `left:${x * 100}%;top:${y * 100}%;transform:translate(-50%,-50%);background-color:${color};`;
+    dot.textContent = emoji;
+    pinsEl.appendChild(dot);
+  });
+
+  document.getElementById('dp-count').textContent =
+    `${pins.length} pin${pins.length !== 1 ? 's' : ''} placed`;
+  document.getElementById('dp-next-btn').textContent = isLast ? 'See Final Scores →' : 'Next Question →';
+  showScreen('droppin');
+});
+
+document.getElementById('dp-next-btn').addEventListener('click', () => {
+  socket.emit('NEXT_QUESTION', { pin: gamePin });
+});
+
 // ── Podium ────────────────────────────────────────────────────────────────────
 
 socket.on('REACTION_BROADCAST', ({ emoji, color }) => {
@@ -309,25 +381,96 @@ socket.on('REACTION_BROADCAST', ({ emoji, color }) => {
 socket.on('FINAL_PODIUM', ({ players }) => {
   clearInterval(timerInterval);
   AudioManager.play('applause');
-  const medals = ['🥇', '🥈', '🥉'];
-  const list = document.getElementById('podium-list');
-  list.innerHTML = '';
 
-  players.forEach(({ nickname, emoji, color, score }, i) => {
-    const row = document.createElement('div');
-    row.className = 'flex items-center gap-4 bg-gray-800 rounded-2xl px-5 py-3';
-    row.innerHTML = `
-      <span class="text-3xl w-10 text-center">${medals[i] || `${i + 1}.`}</span>
-      <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0"
-           style="background-color:${color}">${emoji}</div>
-      <span class="flex-1 font-bold text-lg">${nickname}</span>
-      <span class="text-gray-300 font-semibold">${score.toLocaleString()} pts</span>
+  const medals  = ['🥇', '🥈', '🥉'];
+  const top3El  = document.getElementById('podium-top3');
+  const listEl  = document.getElementById('podium-list');
+  top3El.innerHTML = '';
+  listEl.innerHTML = '';
+
+  // Top-3 podium blocks — staggered slide-in (2nd, 1st, 3rd for visual height order)
+  const podiumOrder = [1, 0, 2]; // indices into players array, rendered left→right
+  const heights = ['h-28 md:h-36', 'h-36 md:h-44', 'h-24 md:h-32'];
+  const delays  = [200, 0, 400]; // ms delay per slot
+
+  podiumOrder.forEach((playerIdx, slot) => {
+    const p = players[playerIdx];
+    if (!p) return;
+    const block = document.createElement('div');
+    block.className = `podium-row flex-1 flex flex-col items-center justify-end rounded-2xl pb-3 pt-2 px-2 bg-gray-800 ${heights[slot]}`;
+    block.style.animationDelay = `${delays[slot]}ms`;
+    block.innerHTML = `
+      <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-2xl md:text-3xl mb-1 flex-shrink-0"
+           style="background-color:${p.color}">${p.emoji}</div>
+      <span class="text-2xl md:text-3xl mb-1">${medals[playerIdx] || ''}</span>
+      <p class="font-black text-sm md:text-base text-center leading-tight truncate w-full text-center">${p.nickname}</p>
+      <p class="text-gray-400 text-xs mt-0.5">${p.score.toLocaleString()} pts</p>
     `;
-    list.appendChild(row);
+    top3El.appendChild(block);
+  });
+
+  // Remaining players (4th onward) — simple rows, fading in after top-3 settles
+  players.slice(3).forEach(({ nickname, emoji, color, score }, i) => {
+    const row = document.createElement('div');
+    row.className = 'podium-row flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5';
+    row.style.animationDelay = `${700 + i * 80}ms`;
+    row.innerHTML = `
+      <span class="text-gray-400 w-6 text-center text-sm font-bold">${i + 4}.</span>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-base flex-shrink-0"
+           style="background-color:${color}">${emoji}</div>
+      <span class="flex-1 font-semibold text-sm">${nickname}</span>
+      <span class="text-gray-400 text-sm">${score.toLocaleString()} pts</span>
+    `;
+    listEl.appendChild(row);
   });
 
   showScreen('podium');
+  launchConfetti();
 });
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.classList.remove('hidden');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  const colors = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#a855f7','#fbbf24'];
+  const particles = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height * 0.6,
+    w: Math.random() * 10 + 6,
+    h: Math.random() * 6 + 4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    speed: Math.random() * 3 + 2,
+    drift: (Math.random() - 0.5) * 1.5,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.12,
+  }));
+
+  const end = Date.now() + 5500;
+  let raf;
+  (function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of particles) {
+      p.y   += p.speed;
+      p.x   += p.drift;
+      p.rot += p.rotSpeed;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (Date.now() < end) {
+      raf = requestAnimationFrame(draw);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.add('hidden');
+    }
+  })();
+}
 
 socket.on('ERROR', ({ message }) => {
   console.error('Server error:', message);

@@ -142,37 +142,73 @@ function registerSocketHandlers(io) {
         });
 
       } else if (room.questionPhase === 'question') {
-        const q = room.quiz.questions[room.currentQuestionIndex];
+        const q     = room.quiz.questions[room.currentQuestionIndex];
+        const qType = q.type || 'multiple';
         room.questionPhase = 'results';
-        const answerCounts = rm.getAnswerCounts(room);
+        const isLast = room.currentQuestionIndex === room.quiz.questions.length - 1;
 
-        room.questionHistory.push({
-          quizIndex: room.currentQuestionIndex,
-          answerCounts,
-          correctIndex: q.correct,
-        });
+        if (qType === 'wordcloud') {
+          const wordCounts = rm.getWordCounts(room);
+          room.questionHistory.push({
+            quizIndex: room.currentQuestionIndex,
+            answerCounts: [room.currentAnswers.size],
+            correctIndex: -1,
+          });
+          io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
 
-        io.to(pin).emit('RESULTS_BREAKDOWN', {
-          correctIndex: q.correct,
-          answerCounts,
-          players: rm.getLeaderboard(room),
-          isLast: room.currentQuestionIndex === room.quiz.questions.length - 1,
-        });
+        } else if (qType === 'droppin') {
+          const pins = rm.getPinCoords(room);
+          room.questionHistory.push({
+            quizIndex: room.currentQuestionIndex,
+            answerCounts: [room.currentAnswers.size],
+            correctIndex: -1,
+          });
+          io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
+
+        } else {
+          const answerCounts = rm.getAnswerCounts(room);
+          const correctIndex = qType === 'poll' ? -1 : q.correct;
+          room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex });
+          io.to(pin).emit('RESULTS_BREAKDOWN', {
+            correctIndex,
+            answerCounts,
+            players: rm.getLeaderboard(room),
+            isLast,
+          });
+        }
       }
     });
 
-    socket.on('ANSWER_SUBMIT', ({ pin, answerIndex }) => {
+    socket.on('ANSWER_SUBMIT', ({ pin, answerIndex, word, coords }) => {
       const room = rm.getRoom(pin);
       if (!room || room.questionPhase !== 'question') return;
       if (!room.players.has(socket.id)) return;
 
-      const { alreadyAnswered } = rm.recordAnswer(pin, socket.id, answerIndex);
+      const q     = room.quiz.questions[room.currentQuestionIndex];
+      const qType = q.type || 'multiple';
+
+      let recordValue;
+      if (qType === 'wordcloud') {
+        recordValue = typeof word === 'string' ? word.trim().slice(0, 60) : '';
+        if (!recordValue) return;
+      } else if (qType === 'droppin') {
+        if (!coords || typeof coords.x !== 'number') return;
+        recordValue = { x: Math.max(0, Math.min(1, coords.x)), y: Math.max(0, Math.min(1, coords.y)) };
+      } else {
+        recordValue = typeof answerIndex === 'number' ? answerIndex : 0;
+      }
+
+      const { alreadyAnswered } = rm.recordAnswer(pin, socket.id, recordValue);
       if (alreadyAnswered) return;
 
-      const q        = room.quiz.questions[room.currentQuestionIndex];
-      const correct  = answerIndex === q.correct;
-      const scoreDelta = correct ? rm.calcScore(room) : 0;
-      if (correct) rm.applyScore(pin, socket.id, scoreDelta);
+      const isScored = qType !== 'poll' && qType !== 'wordcloud' && qType !== 'droppin';
+      let correct    = null;
+      let scoreDelta = 0;
+      if (isScored) {
+        correct    = recordValue === q.correct;
+        scoreDelta = correct ? rm.calcScore(room) : 0;
+        if (correct) rm.applyScore(pin, socket.id, scoreDelta);
+      }
 
       const totalScore = room.players.get(socket.id).score;
       socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore });

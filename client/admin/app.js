@@ -60,10 +60,41 @@ async function login() {
 
 // ── Quiz List ─────────────────────────────────────────────────────────────────
 
+let allQuizzes = [];
+let currentSort = localStorage.getItem('quizSort') || 'newest';
+
+function applySort(quizzes, sort) {
+  const arr = [...quizzes];
+  if (sort === 'newest')     return arr.sort((a, b) => (b.createdAt || '') > (a.createdAt || '') ? 1 : -1);
+  if (sort === 'oldest')     return arr.sort((a, b) => (a.createdAt || '') > (b.createdAt || '') ? 1 : -1);
+  if (sort === 'lastplayed') return arr.sort((a, b) => (b.lastPlayedAt || '') > (a.lastPlayedAt || '') ? 1 : -1);
+  if (sort === 'az')         return arr.sort((a, b) => a.title.localeCompare(b.title));
+  return arr;
+}
+
+function setSortActive(sort) {
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    const active = btn.dataset.sort === sort;
+    btn.className = `sort-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+      active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'
+    }`;
+  });
+}
+
+document.getElementById('sort-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.sort-btn');
+  if (!btn) return;
+  currentSort = btn.dataset.sort;
+  localStorage.setItem('quizSort', currentSort);
+  setSortActive(currentSort);
+  renderQuizList(allQuizzes);
+});
+
 async function loadQuizList() {
   const res = await adminFetch('/api/quizzes');
-  const quizzes = await res.json();
-  renderQuizList(quizzes);
+  allQuizzes = await res.json();
+  setSortActive(currentSort);
+  renderQuizList(allQuizzes);
   showScreen('list');
 }
 
@@ -76,19 +107,24 @@ function renderQuizList(quizzes) {
   const empty = document.getElementById('list-empty');
   list.innerHTML = '';
 
-  if (quizzes.length === 0) {
+  const sorted = applySort(quizzes, currentSort);
+
+  if (sorted.length === 0) {
     empty.classList.remove('hidden');
     return;
   }
   empty.classList.add('hidden');
 
-  quizzes.forEach(({ id, title, questionCount, totalTime }) => {
+  sorted.forEach(({ id, title, questionCount, totalTime, lastPlayedAt }) => {
     const row = document.createElement('div');
     row.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-800 rounded-2xl px-4 md:px-6 py-4 gap-3';
+    const lastPlayedStr = lastPlayedAt
+      ? `Last played ${new Date(lastPlayedAt).toLocaleDateString()}`
+      : 'Never played';
     row.innerHTML = `
       <div>
         <p class="font-bold text-base md:text-lg">${escapeHtml(title)}</p>
-        <p class="text-gray-400 text-sm">${questionCount} question${questionCount !== 1 ? 's' : ''} &middot; ${formatTime(totalTime || 0)}</p>
+        <p class="text-gray-400 text-sm">${questionCount} question${questionCount !== 1 ? 's' : ''} &middot; ${formatTime(totalTime || 0)} &middot; ${lastPlayedStr}</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button data-action="duplicate" data-id="${id}"
@@ -184,7 +220,9 @@ document.getElementById('back-btn').addEventListener('click', () => {
 });
 
 document.getElementById('save-btn').addEventListener('click', saveQuiz);
+document.getElementById('save-btn-mobile').addEventListener('click', saveQuiz);
 document.getElementById('export-btn').addEventListener('click', () => exportQuiz(currentQuiz.id));
+document.getElementById('export-btn-mobile').addEventListener('click', () => exportQuiz(currentQuiz.id));
 
 async function saveQuiz() {
   const title = document.getElementById('quiz-title').value.trim();
@@ -196,9 +234,11 @@ async function saveQuiz() {
     body: JSON.stringify(currentQuiz),
   });
   currentQuiz = await res.json();
-  const btn = document.getElementById('save-btn');
-  btn.textContent = 'Saved ✓';
-  setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+  for (const id of ['save-btn', 'save-btn-mobile']) {
+    const btn = document.getElementById(id);
+    btn.textContent = 'Saved ✓';
+    setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+  }
 }
 
 function renderQuestions() {
@@ -210,7 +250,7 @@ function renderQuestions() {
     return;
   }
 
-  const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F' };
+  const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F', slide: '🖼', poll: '📊', wordcloud: '☁️', droppin: '📍' };
 
   currentQuiz.questions.forEach((q, i) => {
     const isFirst = i === 0;
@@ -228,10 +268,12 @@ function renderQuestions() {
       <div class="flex-1 min-w-0">
         <p class="font-semibold truncate">${escapeHtml(q.text)}</p>
         <p class="text-gray-400 text-xs mt-0.5">
-          ${TYPE_BADGE[q.type] ? `<span class="font-bold text-yellow-400">${TYPE_BADGE[q.type]}</span> &middot; ` : ''}
-          Correct: <span class="text-green-400 font-bold">${OPTION_LABELS[q.correct]}: ${escapeHtml(q.options[q.correct])}</span>
-          &nbsp;·&nbsp;${q.timeLimit}s
-          ${q.image ? '&nbsp;·&nbsp;<span class="text-blue-400">📷</span>' : ''}
+          ${TYPE_BADGE[q.type] ? `<span class="font-bold text-yellow-400">${TYPE_BADGE[q.type]}</span>` : 'Multiple choice'}
+          ${q.type !== 'slide' && q.type !== 'wordcloud' && q.type !== 'droppin' && q.type !== 'poll'
+            ? ` &middot; Correct: <span class="text-green-400 font-bold">${OPTION_LABELS[q.correct]}: ${escapeHtml(q.options[q.correct] || '')}</span>`
+            : ''}
+          ${q.timeLimit ? ` &middot; ${q.timeLimit}s` : ''}
+          ${q.image ? ' &middot; <span class="text-blue-400">📷</span>' : ''}
         </p>
       </div>
       <div class="flex gap-2 flex-shrink-0">
@@ -274,17 +316,22 @@ document.getElementById('add-question-btn').addEventListener('click', () => open
 // ── Question Modal ────────────────────────────────────────────────────────────
 
 function applyQuestionType(type) {
-  const isTF    = type === 'truefalse';
-  const isSlide = type === 'slide';
+  const isTF        = type === 'truefalse';
+  const isSlide     = type === 'slide';
+  const isWordCloud = type === 'wordcloud';
+  const isDropPin   = type === 'droppin';
+  const isPoll      = type === 'poll';
 
-  // Show/hide entire sections for slide
-  document.getElementById('opts-section').style.display    = isSlide ? 'none' : '';
-  document.getElementById('correct-section').style.display = isSlide ? 'none' : '';
-  document.getElementById('time-section').style.display    = isSlide ? 'none' : '';
+  const noOpts    = isSlide || isWordCloud || isDropPin;
+  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll;
+  const noTime    = isSlide || isDropPin;
 
-  // Show/hide C/D for true-false
-  document.getElementById('opt-cd-row').style.display  = (isTF || isSlide) ? 'none' : 'contents';
-  document.getElementById('correct-cd').style.display  = (isTF || isSlide) ? 'none' : 'contents';
+  document.getElementById('opts-section').style.display    = noOpts    ? 'none' : '';
+  document.getElementById('correct-section').style.display = noCorrect ? 'none' : '';
+  document.getElementById('time-section').style.display    = noTime    ? 'none' : '';
+
+  document.getElementById('opt-cd-row').style.display  = (isTF || noOpts) ? 'none' : 'contents';
+  document.getElementById('correct-cd').style.display  = (isTF || noOpts) ? 'none' : 'contents';
 
   if (isTF) {
     document.getElementById('q-opt-a').value = 'True';
@@ -312,10 +359,10 @@ function openQuestionModal(idx) {
   document.getElementById('modal-title').textContent = idx !== null ? 'Edit Question' : 'Add Question';
   document.querySelector(`input[name="q-type"][value="${type}"]`).checked = true;
   document.getElementById('q-text').value = q?.text || '';
-  document.getElementById('q-opt-a').value = q?.options[0] || '';
-  document.getElementById('q-opt-b').value = q?.options[1] || '';
-  document.getElementById('q-opt-c').value = q?.options[2] || '';
-  document.getElementById('q-opt-d').value = q?.options[3] || '';
+  document.getElementById('q-opt-a').value = q?.options?.[0] || '';
+  document.getElementById('q-opt-b').value = q?.options?.[1] || '';
+  document.getElementById('q-opt-c').value = q?.options?.[2] || '';
+  document.getElementById('q-opt-d').value = q?.options?.[3] || '';
   document.querySelector(`input[name="q-correct"][value="${q?.correct ?? 0}"]`).checked = true;
   document.getElementById('q-time').value = q?.timeLimit ?? 20;
   document.getElementById('modal-error').textContent = '';
@@ -380,16 +427,20 @@ document.getElementById('q-image-input').addEventListener('change', async (e) =>
 });
 
 function saveQuestion() {
-  const type    = document.querySelector('input[name="q-type"]:checked').value;
-  const text    = document.getElementById('q-text').value.trim();
-  const correct = parseInt(document.querySelector('input[name="q-correct"]:checked').value);
+  const type      = document.querySelector('input[name="q-type"]:checked').value;
+  const text      = document.getElementById('q-text').value.trim();
+  const correct   = parseInt(document.querySelector('input[name="q-correct"]:checked').value);
   const timeLimit = Math.max(5, Math.min(120, parseInt(document.getElementById('q-time').value) || 20));
-  const errEl = document.getElementById('modal-error');
+  const errEl     = document.getElementById('modal-error');
 
-  const isTF    = type === 'truefalse';
-  const isSlide = type === 'slide';
+  const isTF        = type === 'truefalse';
+  const isSlide     = type === 'slide';
+  const isWordCloud = type === 'wordcloud';
+  const isDropPin   = type === 'droppin';
+  const isPoll      = type === 'poll';
+  const noOpts      = isSlide || isWordCloud || isDropPin;
 
-  const options = isSlide ? [] : isTF
+  const options = noOpts ? [] : isTF
     ? ['True', 'False']
     : [
         document.getElementById('q-opt-a').value.trim(),
@@ -399,9 +450,18 @@ function saveQuestion() {
       ];
 
   if (!text) { errEl.textContent = 'Enter question text'; return; }
-  if (!isTF && !isSlide && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
+  if (!noOpts && !isTF && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
+  if (isDropPin && !pendingImageUrl) { errEl.textContent = 'Drop Pin requires an image'; return; }
 
-  const q = { text, options, correct: isSlide ? 0 : correct, timeLimit: isSlide ? 0 : timeLimit };
+  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll;
+  const noTime    = isSlide || isDropPin;
+
+  const q = {
+    text,
+    options,
+    correct: noCorrect ? 0 : correct,
+    timeLimit: noTime ? 0 : timeLimit,
+  };
   if (type !== 'multiple') q.type = type;
   if (pendingImageUrl) q.image = pendingImageUrl;
 

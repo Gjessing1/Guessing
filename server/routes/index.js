@@ -1,5 +1,7 @@
+const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const sharp = require('sharp');
 const QRCode = require('qrcode');
 const quizStore = require('../quiz/quizStore');
 const resultStore = require('../results/resultStore');
@@ -14,19 +16,14 @@ function adminAuth(req, res, next) {
   next();
 }
 
+// Accept any image type into memory; sharp converts to JPEG before writing to disk
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, '../../public/assets/images'),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('Images only'));
     cb(null, true);
   },
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB raw; output will be smaller
 });
 
 function routes(app) {
@@ -67,7 +64,9 @@ function routes(app) {
   // ── Quiz routes (read: public, write: admin) ──────────────────────────────────
 
   app.get('/api/quizzes', (req, res) => {
-    res.json(quizStore.list());
+    const quizzes = quizStore.list();
+    const lastPlayed = resultStore.lastPlayedByQuizId();
+    res.json(quizzes.map(q => ({ ...q, lastPlayedAt: lastPlayed[q.id] || null })));
   });
 
   app.post('/api/quizzes', adminAuth, (req, res) => {
@@ -168,9 +167,20 @@ function routes(app) {
 
   // ── Image upload ──────────────────────────────────────────────────────────────
 
-  app.post('/api/upload', adminAuth, upload.single('image'), (req, res) => {
+  app.post('/api/upload', adminAuth, upload.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    res.json({ url: `/assets/images/${req.file.filename}` });
+    try {
+      const stem = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const filename = `${stem}.jpg`;
+      const dest = path.join(__dirname, '../../public/assets/images', filename);
+      await sharp(req.file.buffer)
+        .rotate()           // auto-orient from EXIF (fixes rotated phone photos)
+        .jpeg({ quality: 85 })
+        .toFile(dest);
+      res.json({ url: `/assets/images/${filename}` });
+    } catch (err) {
+      res.status(422).json({ error: 'Could not process image. Try JPEG, PNG, WebP, GIF, AVIF, or HEIC.' });
+    }
   });
 }
 

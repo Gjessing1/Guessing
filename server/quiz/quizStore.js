@@ -18,11 +18,12 @@ function write(data) {
 }
 
 function list() {
-  return read().quizzes.map(({ id, title, questions }) => ({
+  return read().quizzes.map(({ id, title, questions, createdAt }) => ({
     id,
     title,
     questionCount: questions.length,
     totalTime: questions.reduce((s, q) => s + (q.timeLimit || 20), 0),
+    createdAt: createdAt || null,
   }));
 }
 
@@ -32,7 +33,7 @@ function get(id) {
 
 function create({ title, questions = [] }) {
   const db = read();
-  const quiz = { id: randomUUID(), title, questions };
+  const quiz = { id: randomUUID(), title, questions, createdAt: new Date().toISOString() };
   db.quizzes.push(quiz);
   write(db);
   return quiz;

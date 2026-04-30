@@ -2,17 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Guessing</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Use dynamic viewport height so layout adapts when the mobile address bar
+       shows/hides, preventing content from being clipped behind it. */
+    .min-h-screen { min-height: 100dvh; }
+    .h-screen     { height: 100dvh; }
+
+    /* Safe-area padding utilities for notches and home indicator */
+    .pt-safe { padding-top: max(1rem, env(safe-area-inset-top)); }
+    .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+    .px-safe {
+      padding-left:  max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  </style>
 </head>
 <body class="bg-gray-900 text-white">
 
-  <!-- Fixed mute button -->
-  <button id="mute-btn" class="fixed top-3 right-3 z-50 bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-lg opacity-60 hover:opacity-100 transition-opacity">🔊</button>
+  <!-- Fixed mute button — inset-top accounts for notch / status bar -->
+  <button id="mute-btn" style="top: max(0.75rem, env(safe-area-inset-top)); right: max(0.75rem, env(safe-area-inset-right));" class="fixed z-50 bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-lg opacity-60 hover:opacity-100 transition-opacity">🔊</button>
 
-  <!-- Reaction bar -->
-  <div id="reaction-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center gap-5 pb-4 pt-2 bg-gradient-to-t from-gray-900/80 to-transparent">
+  <!-- Confetti canvas (shown during final podium) -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-30 hidden"></canvas>
+
+  <!-- Reaction bar — pb accounts for home indicator -->
+  <div id="reaction-bar" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));" class="hidden fixed bottom-0 left-0 right-0 z-40 flex justify-center gap-5 pt-2 bg-gradient-to-t from-gray-900/80 to-transparent">
     <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="👍">👍</button>
     <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="❤️">❤️</button>
     <button class="reaction-btn text-3xl active:scale-125 transition-transform" data-emoji="😂">😂</button>
@@ -21,7 +38,7 @@
   </div>
 
   <!-- Screen 1: PIN Entry -->
-  <div id="screen-pin" class="min-h-screen flex flex-col items-center justify-center px-6">
+  <div id="screen-pin" class="min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe">
     <h1 class="text-5xl font-black mb-2 tracking-tight">Guessing</h1>
     <p class="text-gray-400 mb-10">Enter the game PIN to join</p>
     <input id="pin-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6"
@@ -34,7 +51,7 @@
   </div>
 
   <!-- Screen 2: Nickname + Avatar -->
-  <div id="screen-avatar" class="hidden min-h-screen flex flex-col items-center px-6 py-10">
+  <div id="screen-avatar" class="hidden min-h-screen flex flex-col items-center px-safe" style="padding-top: max(2.5rem, env(safe-area-inset-top)); padding-bottom: max(2.5rem, env(safe-area-inset-bottom));">
     <h2 class="text-3xl font-black mb-6">Pick your look</h2>
     <div id="avatar-preview" class="w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-8 shadow-lg transition-all duration-200"></div>
     <input id="nickname-input" type="text" maxlength="20" placeholder="Your nickname" autocomplete="off"
@@ -50,7 +67,7 @@
   </div>
 
   <!-- Screen 3: Lobby -->
-  <div id="screen-lobby" class="hidden min-h-screen flex flex-col items-center justify-center px-6">
+  <div id="screen-lobby" class="hidden min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe">
     <div id="lobby-avatar" class="w-28 h-28 rounded-full flex items-center justify-center text-6xl mb-5 shadow-lg"></div>
     <p id="lobby-nickname" class="text-2xl font-bold mb-1"></p>
     <button id="change-avatar-btn" class="text-indigo-400 text-sm mb-6 underline underline-offset-2">Change name / avatar</button>
@@ -71,10 +88,58 @@
   </div>
 
   <!-- Screen 4b: Slide -->
-  <div id="screen-slide" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6 gap-6">
+  <div id="screen-slide" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-safe pt-safe pb-safe gap-6">
     <img id="slide-image" class="hidden max-h-52 rounded-2xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
     <p id="slide-text" class="text-2xl font-bold text-center leading-snug"></p>
     <p class="text-gray-500 text-sm animate-pulse">Waiting for host…</p>
+  </div>
+
+  <!-- Screen 4c: Word Cloud input -->
+  <div id="screen-wordcloud" class="hidden h-screen flex flex-col bg-gray-900">
+    <div class="flex justify-between items-center px-safe flex-shrink-0" style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: 0.25rem;">
+      <span id="wc-number" class="text-gray-400 text-sm">Question 1 of 5</span>
+      <span id="wc-timer" class="text-white font-black text-2xl">20</span>
+    </div>
+    <div class="w-full bg-gray-800 h-1.5 flex-shrink-0">
+      <div id="wc-timer-bar" class="h-1.5 bg-indigo-500" style="width:100%;transition:none"></div>
+    </div>
+    <div class="flex-1 flex flex-col items-center justify-center px-safe gap-5">
+      <p id="wc-text" class="text-white text-xl font-bold text-center leading-snug"></p>
+      <input id="wc-input" type="text" maxlength="40" placeholder="Type a word or phrase…" autocomplete="off"
+        class="w-full max-w-sm text-center text-xl bg-gray-800 text-white rounded-xl p-3 border-2 border-gray-700 focus:border-indigo-500 outline-none">
+    </div>
+    <div class="px-safe flex-shrink-0" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); padding-top: 0.5rem;">
+      <button id="wc-submit" class="w-full bg-indigo-600 active:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-colors text-xl">
+        Submit
+      </button>
+    </div>
+  </div>
+
+  <!-- Screen 4d: Drop Pin -->
+  <div id="screen-droppin" class="hidden h-screen flex flex-col bg-gray-900">
+    <div class="flex justify-between items-center px-safe flex-shrink-0" style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: 0.25rem;">
+      <span id="dp-number" class="text-gray-400 text-sm">Question 1 of 5</span>
+      <span id="dp-timer" class="text-white font-black text-2xl">20</span>
+    </div>
+    <div class="w-full bg-gray-800 h-1.5 flex-shrink-0">
+      <div id="dp-timer-bar" class="h-1.5 bg-indigo-500" style="width:100%;transition:none"></div>
+    </div>
+    <p id="dp-text" class="px-safe text-center font-bold text-base py-2 flex-shrink-0"></p>
+    <div id="dp-area" class="flex-1 relative cursor-crosshair overflow-hidden" style="margin: 0 max(1rem, env(safe-area-inset-left)) 0 max(1rem, env(safe-area-inset-right));">
+      <img id="dp-image" class="w-full h-full object-contain" src="" alt="">
+      <div id="dp-bg" class="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+        Tap to place your pin
+      </div>
+      <div id="dp-marker" class="hidden absolute w-8 h-8 pointer-events-none" style="transform:translate(-50%,-50%)">
+        <div class="w-8 h-8 rounded-full border-4 border-white bg-indigo-500 shadow-xl flex items-center justify-center text-sm">📍</div>
+      </div>
+    </div>
+    <div class="px-safe flex-shrink-0" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); padding-top: 0.5rem;">
+      <button id="dp-confirm" disabled
+        class="w-full bg-indigo-600 disabled:bg-gray-700 disabled:text-gray-500 active:bg-indigo-700 text-white font-bold py-3 rounded-2xl transition-colors">
+        Tap the image first
+      </button>
+    </div>
   </div>
 
   <!-- Screen 5: Question -->
@@ -82,26 +147,26 @@
     <div class="w-full bg-gray-800 h-2 flex-shrink-0">
       <div id="q-timer-bar" class="h-2 bg-indigo-500" style="width:100%;transition:none"></div>
     </div>
-    <div class="flex justify-between items-center px-4 py-1 text-sm text-gray-400 flex-shrink-0">
+    <div class="flex justify-between items-center px-safe py-1 text-sm text-gray-400 flex-shrink-0" style="padding-top: max(0.25rem, env(safe-area-inset-top));">
       <span id="q-number">Question 1 of 5</span>
       <span id="q-timer-display" class="text-white font-black text-2xl">20</span>
     </div>
-    <div id="q-text-area" class="flex-1 flex flex-col items-center justify-center px-4 py-1 gap-2 min-h-0">
+    <div id="q-text-area" class="flex-1 flex flex-col items-center justify-center px-safe py-1 gap-2 min-h-0">
       <img id="q-image" class="hidden max-h-28 rounded-xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
       <p id="q-text" class="text-white text-xl font-bold text-center leading-snug"></p>
     </div>
-    <div id="q-options" class="grid grid-cols-2 gap-2 p-3 flex-shrink-0"></div>
+    <div id="q-options" class="grid grid-cols-2 gap-2 px-safe flex-shrink-0" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); padding-top: 0.5rem;"></div>
   </div>
 
   <!-- Screen 6: Answered (waiting for results) -->
-  <div id="screen-answered" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6">
+  <div id="screen-answered" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-safe pt-safe pb-safe">
     <div class="text-7xl mb-6">⏳</div>
     <p class="text-2xl font-bold mb-2">Answer locked in!</p>
     <p class="text-gray-400">Waiting for host to show results…</p>
   </div>
 
   <!-- Screen 7: Question Result -->
-  <div id="screen-result" class="hidden min-h-screen flex flex-col items-center justify-center px-6">
+  <div id="screen-result" class="hidden min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe">
     <div id="result-icon" class="text-8xl mb-6"></div>
     <p id="result-text" class="text-4xl font-black mb-3"></p>
     <p id="result-answer" class="text-lg text-white opacity-75 mb-6"></p>
@@ -112,7 +177,7 @@
   </div>
 
   <!-- Screen 8: Podium -->
-  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-6">
+  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-safe pt-safe pb-safe">
     <div class="text-6xl mb-4">🏆</div>
     <h2 class="text-3xl font-black mb-3">Game Over!</h2>
     <p id="podium-score" class="text-gray-300 text-xl mb-2"></p>
