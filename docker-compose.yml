@@ -7,7 +7,7 @@ services:
       - PORT=3000
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     volumes:
-      - /mnt/data/guessing/quiz:/app/data
+      - guessing_data:/app/data   # or bind: /your/path/on/host:/app/data
     restart: unless-stopped
 
   caddy:
@@ -27,3 +27,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  guessing_data:
