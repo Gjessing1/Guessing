@@ -37,7 +37,7 @@ const screens = {
   podium:   document.getElementById('screen-podium'),
 };
 
-const REACTION_SCREENS = new Set(['lobby', 'question', 'answered', 'result']);
+const REACTION_SCREENS = new Set(['lobby', 'answered', 'result']);
 
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
@@ -75,6 +75,10 @@ pinInput.addEventListener('input', () => {
 });
 pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPin(); });
 document.getElementById('pin-btn').addEventListener('click', submitPin);
+
+// Auto-submit PIN when arriving from a QR code scan
+const qrPin = new URLSearchParams(location.search).get('pin');
+if (qrPin) { pinInput.value = qrPin; submitPin(); }
 
 async function submitPin() {
   const pin = pinInput.value.trim();
@@ -195,7 +199,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   grid.innerHTML = '';
   options.forEach((option, i) => {
     const btn = document.createElement('button');
-    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-lg rounded-2xl p-4 min-h-[90px] flex items-center justify-center text-center leading-tight`;
+    btn.className = `${OPTION_COLORS[i]} active:opacity-70 text-white font-bold text-base rounded-2xl p-3 min-h-[72px] flex items-center justify-center text-center leading-tight`;
     btn.textContent = option;
     btn.addEventListener('click', () => {
       if (playerAnswer !== null) return;

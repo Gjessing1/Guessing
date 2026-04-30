@@ -37,7 +37,7 @@ function routes(app) {
 
   app.post('/api/rooms', async (req, res) => {
     const room = createRoom();
-    const playerUrl = `${req.protocol}://${req.get('host')}/player`;
+    const playerUrl = `${req.protocol}://${req.get('host')}/player?pin=${room.pin}`;
     const qr = await QRCode.toDataURL(playerUrl, {
       width: 160, margin: 1,
       color: { dark: '#ffffff', light: '#1f2937' },

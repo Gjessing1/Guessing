@@ -38,14 +38,13 @@ function showScreen(name) {
   AudioManager.load('tick-tock',  '/assets/music/freesound_community-tick-tock-104746.mp3');
   AudioManager.load('applause',   '/assets/music/driken5482-applause-cheer-236786.mp3');
 
-  // Start muted — clicking the button opts in and starts lobby music
-  AudioManager.toggleMute();
   const muteBtn = document.getElementById('mute-btn');
   muteBtn.addEventListener('click', () => {
     const muted = AudioManager.toggleMute();
     muteBtn.innerHTML = muted ? '🔇' : '🔊';
-    if (!muted) AudioManager.resume('lobby');
   });
+  // Resume lobby music on first interaction (browser autoplay policy)
+  document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
 
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
@@ -200,7 +199,10 @@ function startTimer(seconds) {
     remaining--;
     tick();
     if (remaining === 5) AudioManager.play('tick-tock');
-    if (remaining <= 0) clearInterval(timerInterval);
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      socket.emit('NEXT_QUESTION', { pin: gamePin });
+    }
   }, 1000);
 }
 
