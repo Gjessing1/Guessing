@@ -110,8 +110,8 @@
 - [x] Delete game result from the Results detail view (currently only deletable from list)
 - [x] Open-text answer type: players type a short answer, host sees all responses as a list (no auto-grading)
 
-### Phase 13: Power Features
-- [ ] Team mode — players choose a team colour at avatar screen; scoring aggregated per team on leaderboard
-- [ ] Question time-per-question stats in game results (average answer time, not just correct %)
-- [ ] Admin: preview a quiz as host before going live (read-only dry run)
-- [ ] Sound effects pack toggle — host can switch between Default, Silent, and Party modes
+### Phase 13: Power Features ✅
+- [x] Team mode — players choose a team colour at avatar screen; team ring shown in host lobby; team leaderboard on final podium
+- [x] Question time-per-question stats in game results (average answer time shown in admin results detail)
+- [x] Admin: preview a quiz before going live — full-screen walkthrough with correct answer highlighted, arrow-key navigation
+- [x] Sound effects pack toggle — Default / Silent / Party (party: 10 s tick-tock, confetti on every result)
