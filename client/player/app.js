@@ -107,13 +107,11 @@ if (qrPin) { pinInput.value = qrPin; submitPin(); }
 
 function applyTeamsEnabled(enabled) {
   teamsEnabled = enabled;
-  const section = document.getElementById('team-section');
-  if (enabled) {
-    section.classList.remove('hidden');
-  } else {
-    section.classList.add('hidden');
+  document.getElementById('team-section').classList.toggle('hidden', !enabled);
+  if (!enabled) {
     playerTeam = null;
     document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('border-white'));
+    document.getElementById('lobby-team-wrapper').classList.add('hidden');
   }
 }
 
@@ -231,6 +229,10 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
 
 socket.on('LOBBY_UPDATE', ({ teamsEnabled: enabled }) => {
   applyTeamsEnabled(enabled);
+});
+
+socket.on('ALL_ANSWERED', () => {
+  playerTimerCap = Math.min(playerTimerCap, 1);
 });
 
 socket.on('TIMER_CAP', ({ seconds }) => {

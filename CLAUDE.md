@@ -102,16 +102,19 @@
 
 ## Roadmap
 
-### Phase 12: Polish & Power Features ✅
-- [x] Host can skip / end question early (override timer with "Skip" button alongside "Show Results")
-- [x] Player nickname sanitisation — strip HTML so a crafted nickname can't inject markup into host screen
-- [x] Lobby music auto-stops when host clicks Start (currently there is a brief overlap)
-- [x] Share-game link in host lobby — one-tap copy of the join URL for pasting into chat
-- [x] Delete game result from the Results detail view (currently only deletable from list)
-- [x] Open-text answer type: players type a short answer, host sees all responses as a list (no auto-grading)
-
 ### Phase 13: Power Features ✅
 - [x] Team mode — players choose a team colour at avatar screen; team ring shown in host lobby; team leaderboard on final podium
 - [x] Question time-per-question stats in game results (average answer time shown in admin results detail)
 - [x] Admin: preview a quiz before going live — full-screen walkthrough with correct answer highlighted, arrow-key navigation
 - [x] Sound effects pack toggle — Default / Silent / Party (party: 10 s tick-tock, confetti on every result)
+
+## Phase 14: improvements and stability
+- [x] When all players have answerd the timer should go to 0 instead of waiting the full time
+- [ ] Text response questions should be option to choose in quiz editor if should show player name when submitted, default is yes
+- [ ] Drop the pin question submitted without dropping a pin, you should place it and maybe add an actual submit button after placement?
+- [ ] Explain clearly what lightning round is when creating the lightning round question.
+- [ ] True false should be able to have other naming options, but keep true false as default.
+- [x] Host menu should have small text explaining the sound modes, showing only the explanation of the one currently active and what it does. Silent is self explainatory
+- [x] If host disable team mode it should dissapear from the the player screen as an option to pick team.
+- [x] Default sound mode should also have cheering on final scoreboard and confetti.
+

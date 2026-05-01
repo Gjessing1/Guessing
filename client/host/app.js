@@ -68,6 +68,10 @@ function showScreen(name) {
   document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
 
   // Sound mode toggle (persisted to localStorage)
+  const SOUND_DESCS = {
+    default: 'Applause and confetti on the final scoreboard',
+    party:   'Confetti after every result · tick-tock starts at 10 s',
+  };
   function applySoundMode(mode) {
     soundMode = mode;
     localStorage.setItem('soundMode', mode);
@@ -76,6 +80,7 @@ function showScreen(name) {
       const active = btn.dataset.mode === mode;
       btn.className = `sound-mode-btn px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
     });
+    document.getElementById('sound-mode-desc').textContent = SOUND_DESCS[mode] || '';
   }
   applySoundMode(soundMode); // restore persisted mode
   document.querySelectorAll('.sound-mode-btn').forEach(btn => {
@@ -314,6 +319,10 @@ function startTimer(seconds) {
     }
   }, 1000);
 }
+
+socket.on('ALL_ANSWERED', () => {
+  timerCapOverride = Math.min(timerCapOverride, 1);
+});
 
 socket.on('TIMER_CAP', ({ seconds, teamName }) => {
   timerCapOverride = Math.min(timerCapOverride, seconds);

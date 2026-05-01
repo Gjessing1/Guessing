@@ -279,8 +279,13 @@ function registerSocketHandlers(io) {
       socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore });
 
       const count = rm.getAnswerCount(room);
+      const total = room.players.size;
       if (room.hostSocketId) {
-        io.to(room.hostSocketId).emit('ANSWER_COUNT', { count, total: room.players.size });
+        io.to(room.hostSocketId).emit('ANSWER_COUNT', { count, total });
+      }
+      // When every player has answered, cap the timer to 1 s
+      if (count >= total && total > 0) {
+        io.to(pin).emit('ALL_ANSWERED');
       }
 
       // Team mode: when the first team completes, cap remaining time to 8 s
