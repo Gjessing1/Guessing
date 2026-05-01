@@ -59,7 +59,15 @@
     <p class="text-gray-400 text-sm mb-3 self-start w-full max-w-sm">Choose your emoji</p>
     <div id="emoji-grid" class="grid grid-cols-5 gap-2 w-full max-w-sm mb-8"></div>
     <p class="text-gray-400 text-sm mb-3 self-start w-full max-w-sm">Choose your color</p>
-    <div id="color-grid" class="flex gap-4 flex-wrap mb-8"></div>
+    <div id="color-grid" class="flex gap-4 flex-wrap mb-6"></div>
+    <p class="text-gray-400 text-sm mb-3 self-start w-full max-w-sm">Join a team <span class="text-gray-600">(optional)</span></p>
+    <div id="team-grid" class="flex gap-3 mb-8">
+      <button data-team="none"   class="team-btn w-11 h-11 rounded-full border-4 border-white bg-gray-600 flex items-center justify-center text-lg text-gray-300 transition-transform active:scale-95">—</button>
+      <button data-team="red"    class="team-btn w-11 h-11 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#ef4444"></button>
+      <button data-team="blue"   class="team-btn w-11 h-11 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#3b82f6"></button>
+      <button data-team="yellow" class="team-btn w-11 h-11 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#eab308"></button>
+      <button data-team="green"  class="team-btn w-11 h-11 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#22c55e"></button>
+    </div>
     <p id="avatar-error" class="text-red-400 text-sm mb-4 h-5"></p>
     <button id="join-btn" class="w-full max-w-sm bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-4 rounded-2xl transition-colors">
       Enter Game
@@ -70,6 +78,7 @@
   <div id="screen-lobby" class="hidden min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe">
     <div id="lobby-avatar" class="w-28 h-28 rounded-full flex items-center justify-center text-6xl mb-5 shadow-lg"></div>
     <p id="lobby-nickname" class="text-2xl font-bold mb-1"></p>
+    <p id="lobby-team" class="hidden text-sm font-bold mb-1"></p>
     <button id="change-avatar-btn" class="text-indigo-400 text-sm mb-6 underline underline-offset-2">Change name / avatar</button>
     <p id="player-count" class="text-gray-500 text-sm mb-10">Connecting…</p>
     <div class="flex items-center gap-2 text-gray-400">

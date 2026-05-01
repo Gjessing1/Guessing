@@ -13,15 +13,16 @@ function createRoom() {
   rooms.set(pin, {
     pin,
     hostSocketId: null,
-    players: new Map(),        // socketId → { nickname, emoji, color, score, token }
+    players: new Map(),        // socketId → { nickname, emoji, color, score, token, team }
     tokenIndex: new Map(),     // token → socketId  (for reconnect)
     status: 'lobby',
     quiz: null,
     currentQuestionIndex: -1,
     questionPhase: null,       // 'question' | 'results' | null
-    currentAnswers: new Map(), // socketId → answerIndex
+    currentAnswers: new Map(), // socketId → answerIndex / word / coords
+    answerTimes: new Map(),    // socketId → seconds elapsed when answered
     questionStartTime: null,
-    questionHistory: [],       // [{ quizIndex, answerCounts, correctIndex }]
+    questionHistory: [],       // [{ quizIndex, answerCounts, correctIndex, avgAnswerTime }]
     createdAt: Date.now(),
   });
   return rooms.get(pin);
@@ -45,10 +46,10 @@ function getRoomByPlayerSocket(socketId) {
   return null;
 }
 
-function addPlayer(pin, socketId, nickname, emoji, color, token = null) {
+function addPlayer(pin, socketId, nickname, emoji, color, token = null, team = null) {
   const room = rooms.get(pin);
   if (!room) return null;
-  room.players.set(socketId, { nickname, emoji, color, score: 0, token });
+  room.players.set(socketId, { nickname, emoji, color, score: 0, token, team });
   if (token) room.tokenIndex.set(token, socketId);
   return room;
 }
@@ -150,8 +151,8 @@ function getAnswerCount(room) {
 }
 
 function getPlayerList(room) {
-  return Array.from(room.players.values()).map(({ nickname, emoji, color, score }) => ({
-    nickname, emoji, color, score,
+  return Array.from(room.players.values()).map(({ nickname, emoji, color, score, team }) => ({
+    nickname, emoji, color, score, team: team || null,
   }));
 }
 

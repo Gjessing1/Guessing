@@ -34,5 +34,12 @@ const AudioManager = (() => {
       if (muted) this.stopAll();
       return muted;
     },
+    setMuted(val) {
+      muted = !!val;
+      if (muted) this.stopAll();
+    },
+    isMuted() {
+      return muted;
+    },
   };
 })();

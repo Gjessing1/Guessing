@@ -25,6 +25,7 @@ let gamePin        = null;
 let playerNickname = '';
 let playerEmoji    = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
 let playerColor    = COLORS[Math.floor(Math.random() * COLORS.length)];
+let playerTeam     = null; // 'red' | 'blue' | 'yellow' | 'green' | null
 let playerAnswer      = null;
 let currentOptions    = [];
 let timerInterval     = null;
@@ -146,6 +147,15 @@ COLORS.forEach((color, i) => {
 
 updatePreview();
 
+// Team picker
+document.querySelectorAll('.team-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('border-white'));
+    btn.classList.add('border-white');
+    playerTeam = btn.dataset.team === 'none' ? null : btn.dataset.team;
+  });
+});
+
 document.getElementById('nickname-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitAvatar();
 });
@@ -157,7 +167,7 @@ function submitAvatar() {
   if (!nickname) return showError(avatarError, 'Enter a nickname');
   if (nickname.length > 20) return showError(avatarError, 'Max 20 characters');
   playerNickname = nickname;
-  socket.emit('ROOM_JOIN', { pin: gamePin, nickname: playerNickname, emoji: playerEmoji, color: playerColor, token: sessionToken });
+  socket.emit('ROOM_JOIN', { pin: gamePin, nickname: playerNickname, emoji: playerEmoji, color: playerColor, token: sessionToken, team: playerTeam });
 }
 
 // ── Socket: state transitions ─────────────────────────────────────────────────
@@ -169,6 +179,16 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     lobbyAvatar.style.backgroundColor = playerColor;
     lobbyAvatar.textContent = playerEmoji;
     document.getElementById('lobby-nickname').textContent = playerNickname;
+    const TEAM_COLORS_P = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
+    const TEAM_LABELS_P = { red: '🔴 Red', blue: '🔵 Blue', yellow: '🟡 Yellow', green: '🟢 Green' };
+    const teamEl = document.getElementById('lobby-team');
+    if (playerTeam) {
+      teamEl.textContent = TEAM_LABELS_P[playerTeam];
+      teamEl.style.color = TEAM_COLORS_P[playerTeam];
+      teamEl.classList.remove('hidden');
+    } else {
+      teamEl.classList.add('hidden');
+    }
   }
   if (status === 'playing') {
     showScreen('ready');

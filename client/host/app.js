@@ -12,6 +12,10 @@ let timerTotal = 0;
 let currentQuestionNumber = 0;
 let totalQuestions = 0;
 let isLastQuestion = false;
+let soundMode = localStorage.getItem('soundMode') || 'default';
+
+const TEAM_COLORS = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
+const TEAM_LABELS = { red: '🔴 Red', blue: '🔵 Blue', yellow: '🟡 Yellow', green: '🟢 Green' };
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +63,21 @@ function showScreen(name) {
   });
   // Resume lobby music on first interaction (browser autoplay policy)
   document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
+
+  // Sound mode toggle (persisted to localStorage)
+  function applySoundMode(mode) {
+    soundMode = mode;
+    localStorage.setItem('soundMode', mode);
+    AudioManager.setMuted(mode === 'silent');
+    document.querySelectorAll('.sound-mode-btn').forEach(btn => {
+      const active = btn.dataset.mode === mode;
+      btn.className = `sound-mode-btn px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
+    });
+  }
+  applySoundMode(soundMode); // restore persisted mode
+  document.querySelectorAll('.sound-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => applySoundMode(btn.dataset.mode));
+  });
 
   try {
     const res = await fetch('/api/rooms', { method: 'POST' });
@@ -140,12 +159,13 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
 
   const grid = document.getElementById('player-grid');
   grid.innerHTML = '';
-  players.forEach(({ nickname, emoji, color }) => {
+  players.forEach(({ nickname, emoji, color, team }) => {
     const card = document.createElement('div');
     card.className = 'flex flex-col items-center gap-1 w-16';
+    const ring = team ? `box-shadow:0 0 0 3px ${TEAM_COLORS[team]}` : '';
     card.innerHTML = `
       <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-           style="background-color:${color}">${emoji}</div>
+           style="background-color:${color};${ring}">${emoji}</div>
       <span class="text-xs text-gray-300 truncate w-full text-center">${nickname}</span>
     `;
     grid.appendChild(card);
@@ -244,7 +264,7 @@ function startTimer(seconds) {
   timerInterval = setInterval(() => {
     remaining--;
     tick();
-    if (remaining === 5) AudioManager.play('tick-tock');
+    if (remaining === (soundMode === 'party' ? 10 : 5)) AudioManager.play('tick-tock');
     if (remaining <= 0) {
       clearInterval(timerInterval);
       socket.emit('NEXT_QUESTION', { pin: gamePin });
@@ -258,6 +278,7 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast })
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
+  if (soundMode === 'party') launchConfetti();
   isLastQuestion = isLast;
 
   document.getElementById('results-label').textContent =
@@ -325,6 +346,7 @@ socket.on('WORDCLOUD_RESULTS', ({ wordCounts, isLast }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
+  if (soundMode === 'party') launchConfetti();
   isLastQuestion = isLast;
 
   document.getElementById('wc-label').textContent =
@@ -359,6 +381,7 @@ socket.on('DROPPIN_RESULTS', ({ pins, image, isLast }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
+  if (soundMode === 'party') launchConfetti();
   isLastQuestion = isLast;
 
   document.getElementById('dp-label').textContent =
@@ -394,6 +417,7 @@ socket.on('OPENTEXT_RESULTS', ({ answers, isLast }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
+  if (soundMode === 'party') launchConfetti();
   isLastQuestion = isLast;
 
   document.getElementById('ot-label').textContent =
@@ -487,6 +511,35 @@ socket.on('FINAL_PODIUM', ({ players }) => {
     `;
     listEl.appendChild(row);
   });
+
+  // Team leaderboard — only shown when players have chosen teams
+  const teamScores = {};
+  players.forEach(p => {
+    if (!p.team) return;
+    teamScores[p.team] = (teamScores[p.team] || 0) + p.score;
+  });
+  const teamEntries = Object.entries(teamScores).sort(([, a], [, b]) => b - a);
+  const teamPodium = document.getElementById('team-podium');
+  const teamList   = document.getElementById('team-scores-list');
+  teamList.innerHTML = '';
+
+  if (teamEntries.length > 0) {
+    teamPodium.classList.remove('hidden');
+    const teamMedals = ['🥇', '🥈', '🥉'];
+    teamEntries.forEach(([team, score], i) => {
+      const row = document.createElement('div');
+      row.className = 'podium-row flex items-center gap-3 rounded-xl px-4 py-3';
+      row.style.cssText = `background-color:${TEAM_COLORS[team]}33;animation-delay:${900 + i * 100}ms`;
+      row.innerHTML = `
+        <span class="text-xl w-8 text-center">${teamMedals[i] || `${i + 1}.`}</span>
+        <span class="flex-1 font-bold text-lg">${TEAM_LABELS[team] || team}</span>
+        <span class="font-black text-xl">${score.toLocaleString()} pts</span>
+      `;
+      teamList.appendChild(row);
+    });
+  } else {
+    teamPodium.classList.add('hidden');
+  }
 
   showScreen('podium');
   launchConfetti();

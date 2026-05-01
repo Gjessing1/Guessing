@@ -54,10 +54,18 @@
         <div id="lobby-player-count" class="text-gray-500 mb-2">Waiting for players…</div>
         <button id="copy-link-btn" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors underline underline-offset-2 mb-4">🔗 Copy join link</button>
         <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-4"></div>
-        <label class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-6 cursor-pointer w-full max-w-xs">
+        <label class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-3 cursor-pointer w-full max-w-xs">
           <input type="checkbox" id="show-question-toggle" class="accent-indigo-500 w-4 h-4">
           Show question text on player screens
         </label>
+        <div class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-6 w-full max-w-xs">
+          <span>Sound:</span>
+          <div class="flex rounded-lg overflow-hidden border border-gray-700 text-xs font-semibold">
+            <button data-mode="default" class="sound-mode-btn px-3 py-1.5 bg-indigo-600 text-white transition-colors">Default</button>
+            <button data-mode="silent"  class="sound-mode-btn px-3 py-1.5 text-gray-400 hover:text-white transition-colors">Silent</button>
+            <button data-mode="party"   class="sound-mode-btn px-3 py-1.5 text-gray-400 hover:text-white transition-colors">Party 🎉</button>
+          </div>
+        </div>
         <button id="start-btn"
           class="w-full max-w-xs bg-indigo-600 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-indigo-500 text-white text-xl font-bold py-4 rounded-2xl transition-colors"
           disabled>
@@ -220,7 +228,12 @@
     <!-- Top 3 large podium blocks -->
     <div id="podium-top3" class="flex items-end justify-center gap-3 md:gap-5 mb-6 w-full max-w-xl"></div>
     <!-- Remaining players in a compact list -->
-    <div id="podium-list" class="w-full max-w-lg space-y-2 mb-8 md:mb-10"></div>
+    <div id="podium-list" class="w-full max-w-lg space-y-2 mb-6 md:mb-8"></div>
+    <!-- Team leaderboard (shown only when players have teams) -->
+    <div id="team-podium" class="hidden w-full max-w-lg mb-8 md:mb-10">
+      <p class="text-gray-400 text-xs uppercase tracking-wider mb-3">Team Scores</p>
+      <div id="team-scores-list" class="space-y-2"></div>
+    </div>
     <button onclick="location.reload()"
       class="bg-indigo-600 hover:bg-indigo-500 text-white text-lg md:text-xl font-bold py-3 px-10 rounded-xl transition-colors">
       New Game

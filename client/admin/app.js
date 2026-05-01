@@ -482,6 +482,100 @@ document.getElementById('modal-question').addEventListener('click', (e) => {
   if (e.target === document.getElementById('modal-question')) closeModal();
 });
 
+// ── Quiz Preview ──────────────────────────────────────────────────────────────
+
+let previewIndex = 0;
+
+const PREVIEW_OPTION_COLORS = ['bg-red-600', 'bg-blue-600', 'bg-yellow-500', 'bg-green-600'];
+const PREVIEW_TYPE_LABELS = {
+  multiple:  'Multiple choice',
+  truefalse: 'True / False',
+  lightning: '⚡ Lightning — flat 500 pts, no time bonus',
+  slide:     '🖼 Slide — no answers, host clicks Continue',
+  poll:      '📊 Poll — no correct answer',
+  wordcloud: '☁️ Word Cloud — players type a word',
+  droppin:   '📍 Drop Pin — players tap image',
+  opentext:  '📝 Open Text — players type a short answer',
+};
+
+function openPreview() {
+  if (!currentQuiz || currentQuiz.questions.length === 0) {
+    alert('Add at least one question before previewing');
+    return;
+  }
+  previewIndex = 0;
+  renderPreview();
+  document.getElementById('modal-preview').classList.remove('hidden');
+}
+
+function renderPreview() {
+  const q     = currentQuiz.questions[previewIndex];
+  const total = currentQuiz.questions.length;
+  const type  = q.type || 'multiple';
+
+  document.getElementById('preview-label').textContent =
+    `Question ${previewIndex + 1} of ${total}`;
+  document.getElementById('preview-type-badge').textContent =
+    PREVIEW_TYPE_LABELS[type] || type;
+
+  document.getElementById('preview-text').textContent = q.text;
+
+  const img = document.getElementById('preview-image');
+  if (q.image) { img.src = q.image; img.classList.remove('hidden'); }
+  else { img.classList.add('hidden'); img.src = ''; }
+
+  const optionsEl = document.getElementById('preview-options');
+  optionsEl.innerHTML = '';
+  const noOpts = ['slide', 'wordcloud', 'droppin', 'opentext'].includes(type);
+  const noCorrect = ['slide', 'wordcloud', 'droppin', 'opentext', 'poll'].includes(type);
+  if (!noOpts && q.options?.length) {
+    q.options.forEach((opt, i) => {
+      const isCorrect = !noCorrect && i === q.correct;
+      const div = document.createElement('div');
+      div.className = `${PREVIEW_OPTION_COLORS[i]} ${isCorrect ? 'ring-4 ring-white' : 'opacity-90'} rounded-xl p-4 font-bold flex items-center gap-2`;
+      div.innerHTML = `<span class="opacity-60 text-2xl">${['▲','◆','●','■'][i]}</span><span>${escapeHtml(opt)}</span>${isCorrect ? '<span class="ml-auto">✓</span>' : ''}`;
+      optionsEl.appendChild(div);
+    });
+  }
+
+  const noteEl = document.getElementById('preview-note');
+  const timeStr = q.timeLimit ? `${q.timeLimit}s limit` : '';
+  const specificNotes = { slide: 'No timer · Host clicks Continue', wordcloud: timeStr, droppin: 'Requires image · No timer', opentext: timeStr, poll: `No scoring · ${timeStr}` };
+  noteEl.textContent = specificNotes[type] ?? timeStr;
+
+  document.getElementById('preview-prev-btn').disabled = previewIndex === 0;
+  document.getElementById('preview-next-btn').disabled = previewIndex === total - 1;
+  document.getElementById('preview-next-btn').textContent = previewIndex === total - 1 ? 'Last question' : 'Next →';
+
+  const dotsEl = document.getElementById('preview-dots');
+  dotsEl.innerHTML = '';
+  const maxDots = Math.min(total, 20);
+  for (let i = 0; i < maxDots; i++) {
+    const dot = document.createElement('div');
+    dot.className = `w-2 h-2 rounded-full transition-colors ${i === previewIndex ? 'bg-indigo-500' : 'bg-gray-600'}`;
+    dotsEl.appendChild(dot);
+  }
+}
+
+for (const id of ['preview-btn', 'preview-btn-mobile']) {
+  document.getElementById(id)?.addEventListener('click', openPreview);
+}
+document.getElementById('preview-close-btn').addEventListener('click', () => {
+  document.getElementById('modal-preview').classList.add('hidden');
+});
+document.getElementById('preview-prev-btn').addEventListener('click', () => {
+  if (previewIndex > 0) { previewIndex--; renderPreview(); }
+});
+document.getElementById('preview-next-btn').addEventListener('click', () => {
+  if (previewIndex < currentQuiz.questions.length - 1) { previewIndex++; renderPreview(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('modal-preview').classList.contains('hidden')) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') document.getElementById('preview-next-btn').click();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   document.getElementById('preview-prev-btn').click();
+  if (e.key === 'Escape') document.getElementById('preview-close-btn').click();
+});
+
 // ── Results ───────────────────────────────────────────────────────────────────
 
 async function loadResultsList() {
@@ -586,7 +680,7 @@ async function openResultDetail(id) {
       <div class="w-full bg-gray-700 rounded-full h-2">
         <div class="${color} h-2 rounded-full transition-all" style="width:${pct}%"></div>
       </div>
-      <p class="text-gray-500 text-xs mt-1">${q.correctCount} / ${q.answeredCount} answered correctly</p>
+      <p class="text-gray-500 text-xs mt-1">${q.correctCount} / ${q.answeredCount} answered correctly${q.avgAnswerTime != null ? ` · avg ${q.avgAnswerTime}s` : ''}</p>
     `;
     questionsEl.appendChild(row);
   });

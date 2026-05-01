@@ -41,6 +41,7 @@ function advanceRoom(io, room, pin) {
           correctCount,
           answeredCount,
           correctPct: answeredCount > 0 ? Math.round(correctCount / answeredCount * 100) : 0,
+          avgAnswerTime: h.avgAnswerTime ?? null,
         };
       }),
     });
@@ -52,6 +53,7 @@ function advanceRoom(io, room, pin) {
 
   room.questionPhase = isSlide ? 'slide' : 'question';
   room.currentAnswers = new Map();
+  room.answerTimes = new Map();
   room.questionStartTime = Date.now();
 
   io.to(pin).emit('QUESTION_DATA', {
@@ -83,12 +85,13 @@ function registerSocketHandlers(io) {
       socket.emit('GAME_STATE_CHANGE', { status: room.status, pin });
     });
 
-    socket.on('ROOM_JOIN', ({ pin, nickname, emoji, color, token }) => {
+    socket.on('ROOM_JOIN', ({ pin, nickname, emoji, color, token, team }) => {
       const room = rm.getRoom(pin);
       if (!room) return socket.emit('ERROR', { message: 'Room not found' });
 
       const cleanNick = sanitize(nickname);
       if (!cleanNick) return socket.emit('ERROR', { message: 'Invalid nickname' });
+      const cleanTeam = ['red', 'blue', 'yellow', 'green'].includes(team) ? team : null;
 
       // Mid-game reconnect via session token
       if (token && room.status === 'playing') {
@@ -118,9 +121,9 @@ function registerSocketHandlers(io) {
 
       const existing = room.players.get(socket.id);
       if (existing) {
-        room.players.set(socket.id, { ...existing, nickname: cleanNick, emoji, color });
+        room.players.set(socket.id, { ...existing, nickname: cleanNick, emoji, color, team: cleanTeam });
       } else {
-        rm.addPlayer(pin, socket.id, cleanNick, emoji, color, token || null);
+        rm.addPlayer(pin, socket.id, cleanNick, emoji, color, token || null, cleanTeam);
         socket.join(pin);
       }
 
@@ -160,16 +163,22 @@ function registerSocketHandlers(io) {
         room.questionPhase = 'results';
 
         // Record to question history (needed for analytics regardless of skip)
+        const times = Array.from(room.answerTimes.values());
+        const avgAnswerTime = times.length > 0
+          ? Math.round(times.reduce((s, t) => s + t, 0) / times.length * 10) / 10
+          : null;
+
         if (qType === 'wordcloud' || qType === 'opentext' || qType === 'droppin') {
           room.questionHistory.push({
             quizIndex: room.currentQuestionIndex,
             answerCounts: [room.currentAnswers.size],
             correctIndex: -1,
+            avgAnswerTime,
           });
         } else {
           const answerCounts = rm.getAnswerCounts(room);
           const correctIndex = qType === 'poll' ? -1 : q.correct;
-          room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex });
+          room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex, avgAnswerTime });
         }
 
         if (skip) {
@@ -220,6 +229,8 @@ function registerSocketHandlers(io) {
 
       const { alreadyAnswered } = rm.recordAnswer(pin, socket.id, recordValue);
       if (alreadyAnswered) return;
+
+      room.answerTimes.set(socket.id, (Date.now() - room.questionStartTime) / 1000);
 
       const isScored = qType !== 'poll' && qType !== 'wordcloud' && qType !== 'droppin' && qType !== 'opentext';
       let correct    = null;
