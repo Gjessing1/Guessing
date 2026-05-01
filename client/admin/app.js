@@ -241,6 +241,8 @@ async function saveQuiz() {
   }
 }
 
+let dragSrcIdx = null;
+
 function renderQuestions() {
   const list = document.getElementById('question-list');
   list.innerHTML = '';
@@ -253,18 +255,13 @@ function renderQuestions() {
   const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F', slide: '🖼', poll: '📊', wordcloud: '☁️', droppin: '📍', opentext: '📝' };
 
   currentQuiz.questions.forEach((q, i) => {
-    const isFirst = i === 0;
-    const isLast  = i === currentQuiz.questions.length - 1;
     const row = document.createElement('div');
-    row.className = 'flex items-center gap-3 bg-gray-800 rounded-2xl px-4 py-3';
+    row.className = 'flex items-center gap-3 bg-gray-800 rounded-2xl px-4 py-3 transition-opacity';
+    row.draggable = true;
+    row.dataset.idx = i;
     row.innerHTML = `
-      <div class="flex flex-col gap-1 flex-shrink-0">
-        <button data-action="up" data-idx="${i}"
-          class="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none px-1" ${isFirst ? 'disabled' : ''}>▲</button>
-        <span class="text-gray-500 font-black text-center text-sm">${i + 1}</span>
-        <button data-action="down" data-idx="${i}"
-          class="text-gray-500 hover:text-white disabled:opacity-20 text-xs leading-none px-1" ${isLast ? 'disabled' : ''}>▼</button>
-      </div>
+      <span class="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 select-none text-xl flex-shrink-0 px-1" title="Drag to reorder">⠿</span>
+      <span class="text-gray-500 font-black text-sm w-5 text-center flex-shrink-0">${i + 1}</span>
       <div class="flex-1 min-w-0">
         <p class="font-semibold truncate">${escapeHtml(q.text)}</p>
         <p class="text-gray-400 text-xs mt-0.5">
@@ -277,33 +274,56 @@ function renderQuestions() {
         </p>
       </div>
       <div class="flex gap-2 flex-shrink-0">
+        <button data-action="copy" data-idx="${i}"
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-1.5 px-3 rounded-lg text-sm transition-colors" title="Duplicate">⧉</button>
         <button data-action="edit" data-idx="${i}"
           class="bg-gray-700 hover:bg-indigo-600 text-white font-semibold py-1.5 px-3 rounded-lg text-sm transition-colors">Edit</button>
         <button data-action="delete" data-idx="${i}"
           class="bg-gray-700 hover:bg-red-700 text-white font-semibold py-1.5 px-3 rounded-lg text-sm transition-colors">✕</button>
       </div>
     `;
+
+    row.addEventListener('dragstart', e => {
+      dragSrcIdx = i;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => row.classList.add('opacity-40'), 0);
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('opacity-40');
+      list.querySelectorAll('[data-idx]').forEach(r => r.classList.remove('ring-2', 'ring-indigo-400'));
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragSrcIdx !== null && dragSrcIdx !== i) row.classList.add('ring-2', 'ring-indigo-400');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('ring-2', 'ring-indigo-400'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.classList.remove('ring-2', 'ring-indigo-400');
+      if (dragSrcIdx === null || dragSrcIdx === i) return;
+      const [moved] = currentQuiz.questions.splice(dragSrcIdx, 1);
+      currentQuiz.questions.splice(i, 0, moved);
+      dragSrcIdx = null;
+      renderQuestions();
+    });
+
     list.appendChild(row);
   });
-
-  list.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const idx = parseInt(btn.dataset.idx);
-    if (btn.dataset.action === 'edit')   openQuestionModal(idx);
-    if (btn.dataset.action === 'delete') deleteQuestion(idx);
-    if (btn.dataset.action === 'up' && idx > 0) {
-      [currentQuiz.questions[idx - 1], currentQuiz.questions[idx]] =
-        [currentQuiz.questions[idx], currentQuiz.questions[idx - 1]];
-      renderQuestions();
-    }
-    if (btn.dataset.action === 'down' && idx < currentQuiz.questions.length - 1) {
-      [currentQuiz.questions[idx], currentQuiz.questions[idx + 1]] =
-        [currentQuiz.questions[idx + 1], currentQuiz.questions[idx]];
-      renderQuestions();
-    }
-  });
 }
+
+// Question list actions — set up once (not inside renderQuestions to avoid accumulation)
+document.getElementById('question-list').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx);
+  if (btn.dataset.action === 'edit')   openQuestionModal(idx);
+  if (btn.dataset.action === 'delete') deleteQuestion(idx);
+  if (btn.dataset.action === 'copy') {
+    currentQuiz.questions.splice(idx + 1, 0, JSON.parse(JSON.stringify(currentQuiz.questions[idx])));
+    renderQuestions();
+  }
+});
 
 function deleteQuestion(idx) {
   if (!confirm('Delete this question?')) return;

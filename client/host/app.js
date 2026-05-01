@@ -360,7 +360,7 @@ socket.on('TEAM_NAMES_UPDATE', ({ teamNames }) => {
 
 // ── Results ───────────────────────────────────────────────────────────────────
 
-socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast }) => {
+socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast, fastestCorrect }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
@@ -420,6 +420,15 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast })
     `;
     topEl.appendChild(card);
   });
+
+  const fastestEl = document.getElementById('results-fastest');
+  const fastestTxt = document.getElementById('results-fastest-text');
+  if (fastestCorrect && correctIndex >= 0) {
+    fastestTxt.innerHTML = `⚡ Fastest correct: <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-sm align-middle mx-1" style="background-color:${fastestCorrect.color}">${fastestCorrect.emoji}</span> <span class="text-white">${escapeHtml(fastestCorrect.nickname)}</span>`;
+    fastestEl.classList.remove('hidden');
+  } else {
+    fastestEl.classList.add('hidden');
+  }
 
   showScreen('results');
 });
@@ -562,50 +571,70 @@ socket.on('FINAL_PODIUM', ({ players, teamNames }) => {
   clearInterval(timerInterval);
   AudioManager.play('applause');
 
-  const medals  = ['🥇', '🥈', '🥉'];
-  const top3El  = document.getElementById('podium-top3');
-  const listEl  = document.getElementById('podium-list');
+  const medals = ['🥇', '🥈', '🥉'];
+  const top3El = document.getElementById('podium-top3');
+  const listEl = document.getElementById('podium-list');
   top3El.innerHTML = '';
   listEl.innerHTML = '';
 
-  // Top-3 podium blocks — staggered slide-in (2nd, 1st, 3rd for visual height order)
-  const podiumOrder = [1, 0, 2]; // indices into players array, rendered left→right
-  const heights = ['h-28 md:h-36', 'h-36 md:h-44', 'h-24 md:h-32'];
-  const delays  = [200, 0, 400]; // ms delay per slot
+  // Podium slots: left=2nd, center=1st, right=3rd
+  const podiumOrder  = [1, 0, 2];
+  const slotHeights  = ['140px', '190px', '100px'];
+  const slotColors   = [
+    'linear-gradient(160deg,#94a3b8,#64748b)',  // silver
+    'linear-gradient(160deg,#fbbf24,#d97706)',  // gold
+    'linear-gradient(160deg,#b45309,#92400e)',  // bronze
+  ];
+  const slotGlows = [
+    '0 0 28px rgba(148,163,184,0.45), 0 8px 24px rgba(0,0,0,0.5)',
+    '0 0 52px rgba(251,191,36,0.7),  0 8px 32px rgba(0,0,0,0.6)',
+    '0 0 18px rgba(180,120,60,0.38), 0 8px 20px rgba(0,0,0,0.5)',
+  ];
+  // 3rd appears first (200ms), 2nd next (650ms), 1st last for drama (1150ms)
+  const slotDelays = [650, 1150, 200];
 
   podiumOrder.forEach((playerIdx, slot) => {
     const p = players[playerIdx];
     if (!p) return;
+
+    const col = document.createElement('div');
+    col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;';
+
+    const av = document.createElement('div');
+    av.className = 'avatar-pop rounded-full flex items-center justify-center text-2xl md:text-3xl mb-2 flex-shrink-0';
+    av.style.cssText = `width:56px;height:56px;background-color:${p.color};box-shadow:0 4px 20px rgba(0,0,0,0.55);animation-delay:${slotDelays[slot] + 280}ms`;
+    av.textContent = p.emoji;
+
     const block = document.createElement('div');
-    block.className = `podium-row flex-1 flex flex-col items-center justify-end rounded-2xl pb-3 pt-2 px-2 bg-gray-800 ${heights[slot]}`;
-    block.style.animationDelay = `${delays[slot]}ms`;
+    block.className = 'podium-block w-full flex flex-col items-center justify-center rounded-t-2xl px-3 py-4';
+    block.style.cssText = `height:${slotHeights[slot]};background:${slotColors[slot]};box-shadow:${slotGlows[slot]};animation-delay:${slotDelays[slot]}ms`;
     block.innerHTML = `
-      <div class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-2xl md:text-3xl mb-1 flex-shrink-0"
-           style="background-color:${p.color}">${p.emoji}</div>
-      <span class="text-2xl md:text-3xl mb-1">${medals[playerIdx] || ''}</span>
-      <p class="font-black text-sm md:text-base text-center leading-tight truncate w-full text-center">${p.nickname}</p>
-      <p class="text-gray-400 text-xs mt-0.5">${p.score.toLocaleString()} pts</p>
+      <span class="text-2xl md:text-3xl mb-1" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))">${medals[playerIdx] || ''}</span>
+      <p class="font-black text-sm md:text-base text-center leading-tight text-white w-full" style="text-shadow:0 1px 4px rgba(0,0,0,0.6)">${escapeHtml(p.nickname)}</p>
+      <p class="text-xs font-semibold mt-1" style="color:rgba(255,255,255,0.72)">${p.score.toLocaleString()} pts</p>
     `;
-    top3El.appendChild(block);
+
+    col.appendChild(av);
+    col.appendChild(block);
+    top3El.appendChild(col);
   });
 
-  // Remaining players (4th onward) — simple rows, fading in after top-3 settles
+  // Remaining players (4th+)
   players.slice(3).forEach(({ nickname, emoji, color, score }, i) => {
     const row = document.createElement('div');
     row.className = 'podium-row flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-2.5';
-    row.style.animationDelay = `${700 + i * 80}ms`;
+    row.style.animationDelay = `${1600 + i * 80}ms`;
     row.innerHTML = `
       <span class="text-gray-400 w-6 text-center text-sm font-bold">${i + 4}.</span>
       <div class="w-8 h-8 rounded-full flex items-center justify-center text-base flex-shrink-0"
            style="background-color:${color}">${emoji}</div>
-      <span class="flex-1 font-semibold text-sm">${nickname}</span>
+      <span class="flex-1 font-semibold text-sm">${escapeHtml(nickname)}</span>
       <span class="text-gray-400 text-sm">${score.toLocaleString()} pts</span>
     `;
     listEl.appendChild(row);
   });
 
-  // Team leaderboard — only shown when players have chosen teams.
-  // Ranked by average score per player so team size doesn't matter.
+  // Team leaderboard
   const teamTotals = {};
   const teamCounts = {};
   players.forEach(p => {
@@ -627,7 +656,7 @@ socket.on('FINAL_PODIUM', ({ players, teamNames }) => {
     teamEntries.forEach(({ team, avg, count }, i) => {
       const row = document.createElement('div');
       row.className = 'podium-row flex items-center gap-3 rounded-xl px-4 py-3';
-      row.style.cssText = `background-color:${TEAM_COLORS[team]}33;animation-delay:${900 + i * 100}ms`;
+      row.style.cssText = `background-color:${TEAM_COLORS[team]}33;animation-delay:${1800 + i * 100}ms`;
       row.innerHTML = `
         <span class="text-xl w-8 text-center">${teamMedals[i] || `${i + 1}.`}</span>
         <span class="flex-1 font-bold text-lg">${TEAM_EMOJIS[team] || ''} ${escapeHtml(currentTeamNames[team] || team)}</span>
@@ -638,8 +667,14 @@ socket.on('FINAL_PODIUM', ({ players, teamNames }) => {
       `;
       teamList.appendChild(row);
     });
+
+    // Tint background toward winning team colour
+    const winColor = TEAM_COLORS[teamEntries[0].team];
+    document.getElementById('screen-podium').style.background =
+      `linear-gradient(180deg,${winColor}1a 0%,#111827 35%)`;
   } else {
     teamPodium.classList.add('hidden');
+    document.getElementById('screen-podium').style.background = '';
   }
 
   showScreen('podium');

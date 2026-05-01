@@ -24,6 +24,20 @@
     .podium-row {
       animation: slide-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
+    @keyframes podium-rise {
+      0%   { transform: translateY(80px) scaleY(0.4); opacity: 0; }
+      65%  { transform: translateY(-6px) scaleY(1.03); opacity: 1; }
+      82%  { transform: translateY(3px) scaleY(0.99); }
+      100% { transform: translateY(0) scaleY(1); opacity: 1; }
+    }
+    @keyframes avatar-pop {
+      0%   { transform: scale(0) translateY(16px); opacity: 0; }
+      60%  { transform: scale(1.18) translateY(-4px); opacity: 1; }
+      80%  { transform: scale(0.93); }
+      100% { transform: scale(1) translateY(0); }
+    }
+    .podium-block { animation: podium-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: bottom; }
+    .avatar-pop   { animation: avatar-pop  0.5s  cubic-bezier(0.22, 1, 0.36, 1) both; }
     @keyframes lightning-pulse {
       0%,100% { transform: scale(1);   opacity: 1; }
       50%     { transform: scale(1.15); opacity: 0.85; }
@@ -182,6 +196,10 @@
 
     <div id="results-bars" class="flex flex-col gap-2 md:gap-3 px-4 md:px-12 pt-4 md:pt-6 pb-3 md:pb-4"></div>
 
+    <div id="results-fastest" class="hidden px-4 md:px-12 pb-3">
+      <p id="results-fastest-text" class="text-sm text-yellow-300 font-semibold"></p>
+    </div>
+
     <div class="px-4 md:px-12 pb-4 md:pb-6">
       <p class="text-gray-500 text-xs uppercase tracking-wider mb-2 md:mb-3">Leaderboard</p>
       <div id="results-top" class="flex gap-2 md:gap-3"></div>
@@ -261,22 +279,32 @@
   </div>
 
   <!-- Screen: Podium -->
-  <div id="screen-podium" class="hidden min-h-screen flex flex-col items-center justify-center px-6 md:px-8 py-10">
-    <div class="text-5xl md:text-6xl mb-3">🏆</div>
-    <h2 class="text-3xl md:text-4xl font-black mb-8 md:mb-10">Final Scores</h2>
-    <!-- Top 3 large podium blocks -->
-    <div id="podium-top3" class="flex items-end justify-center gap-3 md:gap-5 mb-6 w-full max-w-xl"></div>
-    <!-- Remaining players in a compact list -->
-    <div id="podium-list" class="w-full max-w-lg space-y-2 mb-6 md:mb-8"></div>
-    <!-- Team leaderboard (shown only when players have teams) -->
-    <div id="team-podium" class="hidden w-full max-w-lg mb-8 md:mb-10">
-      <p class="text-gray-400 text-xs uppercase tracking-wider mb-3">Team Scores</p>
-      <div id="team-scores-list" class="space-y-2"></div>
+  <div id="screen-podium" class="hidden min-h-screen flex flex-col bg-gray-900 overflow-y-auto">
+    <!-- Title -->
+    <div class="text-center pt-8 pb-4 flex-shrink-0">
+      <h2 class="text-3xl md:text-4xl font-black tracking-tight">Final Scores</h2>
     </div>
-    <button onclick="location.reload()"
-      class="bg-indigo-600 hover:bg-indigo-500 text-white text-lg md:text-xl font-bold py-3 px-10 rounded-xl transition-colors">
-      New Game
-    </button>
+
+    <!-- Stage: avatars float above, blocks rise from the base -->
+    <div class="flex-shrink-0 px-6 md:px-16">
+      <div id="podium-top3" class="flex items-end justify-center gap-2 md:gap-4 w-full max-w-2xl mx-auto"></div>
+      <div class="w-full max-w-2xl mx-auto h-2 rounded-b-xl" style="background:linear-gradient(90deg,#374151,#6b7280,#374151)"></div>
+    </div>
+
+    <!-- Remaining players list + teams + button -->
+    <div class="flex-1 px-6 md:px-12 py-5">
+      <div id="podium-list" class="w-full max-w-lg mx-auto space-y-2 mb-5"></div>
+      <div id="team-podium" class="hidden w-full max-w-lg mx-auto mb-6">
+        <p class="text-gray-400 text-xs uppercase tracking-wider mb-3">Team Scores</p>
+        <div id="team-scores-list" class="space-y-2"></div>
+      </div>
+      <div class="flex justify-center mt-4">
+        <button onclick="location.reload()"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white text-lg md:text-xl font-bold py-3 px-10 rounded-xl transition-colors">
+          New Game
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>

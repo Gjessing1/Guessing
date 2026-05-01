@@ -290,9 +290,16 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
   }
 });
 
-socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
+socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore, streak }) => {
   playerScore = totalScore;
   lastAnswerResult = { correct, scoreDelta, totalScore, didAnswer: true };
+  const badge = document.getElementById('streak-badge');
+  if (streak >= 3) {
+    badge.textContent = `🔥 ${streak} in a row!`;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
 });
 
 // ── Socket: question flow ─────────────────────────────────────────────────────

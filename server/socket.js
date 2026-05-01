@@ -249,11 +249,26 @@ function registerSocketHandlers(io) {
           io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
         } else {
           const h = room.questionHistory[room.questionHistory.length - 1];
+          let fastestCorrect = null;
+          if (h.correctIndex >= 0) {
+            let bestTime = Infinity;
+            for (const [sid, answer] of room.currentAnswers.entries()) {
+              if (answer === h.correctIndex) {
+                const t = room.answerTimes.get(sid);
+                if (t !== undefined && t < bestTime) {
+                  bestTime = t;
+                  const p = room.players.get(sid);
+                  if (p) fastestCorrect = { nickname: p.nickname, emoji: p.emoji, color: p.color };
+                }
+              }
+            }
+          }
           io.to(pin).emit('RESULTS_BREAKDOWN', {
             correctIndex: h.correctIndex,
             answerCounts: h.answerCounts,
             players: rm.getLeaderboard(room),
             isLast,
+            fastestCorrect,
           });
         }
       }
@@ -286,14 +301,21 @@ function registerSocketHandlers(io) {
       const isScored = qType !== 'poll' && qType !== 'wordcloud' && qType !== 'droppin' && qType !== 'opentext';
       let correct    = null;
       let scoreDelta = 0;
+      let streak     = null;
       if (isScored) {
         correct    = recordValue === q.correct;
         scoreDelta = correct ? rm.calcScore(room) : 0;
         if (correct) rm.applyScore(pin, socket.id, scoreDelta);
+        streak = rm.recordStreak(room, socket.id, correct);
+        if (correct && streak >= 3) {
+          const bonus = 100;
+          room.players.get(socket.id).score += bonus;
+          scoreDelta += bonus;
+        }
       }
 
       const totalScore = room.players.get(socket.id).score;
-      socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore });
+      socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore, streak });
 
       const count = rm.getAnswerCount(room);
       const total = room.players.size;

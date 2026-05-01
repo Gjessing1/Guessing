@@ -52,7 +52,7 @@ function getRoomByPlayerSocket(socketId) {
 function addPlayer(pin, socketId, nickname, emoji, color, token = null, team = null) {
   const room = rooms.get(pin);
   if (!room) return null;
-  room.players.set(socketId, { nickname, emoji, color, score: 0, token, team });
+  room.players.set(socketId, { nickname, emoji, color, score: 0, streak: 0, token, team });
   if (token) room.tokenIndex.set(token, socketId);
   return room;
 }
@@ -190,6 +190,13 @@ function applyScore(pin, socketId, delta) {
   if (player) player.score += delta;
 }
 
+function recordStreak(room, socketId, correct) {
+  const player = room.players.get(socketId);
+  if (!player) return 0;
+  player.streak = correct ? (player.streak || 0) + 1 : 0;
+  return player.streak;
+}
+
 module.exports = {
   createRoom,
   getRoom,
@@ -213,4 +220,5 @@ module.exports = {
   getLeaderboard,
   calcScore,
   applyScore,
+  recordStreak,
 };
