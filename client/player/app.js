@@ -232,6 +232,11 @@ socket.on('LOBBY_UPDATE', ({ teamsEnabled: enabled }) => {
   applyTeamsEnabled(enabled);
 });
 
+socket.on('RECONNECT_WAITING', () => {
+  clearInterval(timerInterval);
+  showScreen('answered');
+});
+
 socket.on('ALL_ANSWERED', () => {
   playerTimerCap = Math.min(playerTimerCap, 1);
 });

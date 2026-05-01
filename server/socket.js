@@ -134,6 +134,8 @@ function registerSocketHandlers(io) {
               image: q.image || null,
               type: q.type || 'multiple',
             });
+          } else if (room.questionPhase === 'results') {
+            socket.emit('RECONNECT_WAITING');
           }
           return;
         }

@@ -162,13 +162,15 @@
       <div id="dp-timer-bar" class="h-1.5 bg-indigo-500" style="width:100%;transition:none"></div>
     </div>
     <p id="dp-text" class="px-safe text-center font-bold text-base py-2 flex-shrink-0"></p>
-    <div id="dp-area" class="flex-1 relative cursor-crosshair overflow-hidden" style="margin: 0 max(1rem, env(safe-area-inset-left)) 0 max(1rem, env(safe-area-inset-right));">
-      <img id="dp-image" class="w-full h-full object-cover" src="" alt="">
-      <div id="dp-bg" class="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
-        Tap to place your pin
-      </div>
-      <div id="dp-marker" class="hidden absolute w-8 h-8 pointer-events-none" style="transform:translate(-50%,-50%)">
-        <div class="w-8 h-8 rounded-full border-4 border-white bg-indigo-500 shadow-xl flex items-center justify-center text-sm">📍</div>
+    <div class="flex-1 flex items-center justify-center overflow-hidden" style="padding: 0 max(1rem, env(safe-area-inset-left)) 0 max(1rem, env(safe-area-inset-right))">
+      <div id="dp-area" class="relative cursor-crosshair overflow-hidden w-full" style="aspect-ratio:16/9">
+        <img id="dp-image" class="w-full h-full object-cover" src="" alt="">
+        <div id="dp-bg" class="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+          Tap to place your pin
+        </div>
+        <div id="dp-marker" class="hidden absolute w-8 h-8 pointer-events-none" style="transform:translate(-50%,-50%)">
+          <div class="w-8 h-8 rounded-full border-4 border-white bg-indigo-500 shadow-xl flex items-center justify-center text-sm">📍</div>
+        </div>
       </div>
     </div>
     <div class="px-safe flex-shrink-0" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); padding-top: 0.5rem;">
