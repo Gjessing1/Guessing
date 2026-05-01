@@ -8,6 +8,64 @@ setInterval(() => rm.pruneStaleRooms(), 30 * 60 * 1000);
 // pin → timeoutId for host disconnect grace period
 const hostGraceTimers = new Map();
 
+function sanitize(str) {
+  return String(str || '').replace(/<[^>]*>/g, '').trim().slice(0, 20);
+}
+
+// Advance room to the next question (or end game). Called from both normal flow
+// and skip flow so the logic lives in one place.
+function advanceRoom(io, room, pin) {
+  room.currentQuestionIndex++;
+
+  if (room.currentQuestionIndex >= room.quiz.questions.length) {
+    const players = rm.getLeaderboard(room);
+    io.to(pin).emit('FINAL_PODIUM', { players });
+    room.status = 'ended';
+
+    resultStore.save({
+      quizId: room.quiz.id || null,
+      quizTitle: room.quiz.title,
+      playedAt: new Date().toISOString(),
+      playerCount: players.length,
+      players: players.map((p, i) => ({
+        nickname: p.nickname, emoji: p.emoji, color: p.color,
+        score: p.score, rank: i + 1,
+      })),
+      questions: room.questionHistory.map(h => {
+        const q = room.quiz.questions[h.quizIndex];
+        const correctCount  = h.answerCounts[h.correctIndex] || 0;
+        const answeredCount = h.answerCounts.reduce((s, c) => s + c, 0);
+        return {
+          text: q.text,
+          type: q.type || 'multiple',
+          correctCount,
+          answeredCount,
+          correctPct: answeredCount > 0 ? Math.round(correctCount / answeredCount * 100) : 0,
+        };
+      }),
+    });
+    return;
+  }
+
+  const q = room.quiz.questions[room.currentQuestionIndex];
+  const isSlide = q.type === 'slide';
+
+  room.questionPhase = isSlide ? 'slide' : 'question';
+  room.currentAnswers = new Map();
+  room.questionStartTime = Date.now();
+
+  io.to(pin).emit('QUESTION_DATA', {
+    questionNumber: room.currentQuestionIndex + 1,
+    totalQuestions: room.quiz.questions.length,
+    text: q.text,
+    options: q.options || [],
+    timeLimit: q.timeLimit || 0,
+    image: q.image || null,
+    type: q.type || 'multiple',
+    showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
+  });
+}
+
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
 
@@ -29,11 +87,14 @@ function registerSocketHandlers(io) {
       const room = rm.getRoom(pin);
       if (!room) return socket.emit('ERROR', { message: 'Room not found' });
 
+      const cleanNick = sanitize(nickname);
+      if (!cleanNick) return socket.emit('ERROR', { message: 'Invalid nickname' });
+
       // Mid-game reconnect via session token
       if (token && room.status === 'playing') {
         const found = rm.findPlayerByToken(room, token);
         if (found) {
-          rm.reconnectPlayer(room, found.socketId, socket.id, nickname, emoji, color);
+          rm.reconnectPlayer(room, found.socketId, socket.id, cleanNick, emoji, color);
           socket.join(pin);
           socket.emit('GAME_STATE_CHANGE', { status: 'playing' });
           if (room.questionPhase === 'question') {
@@ -57,9 +118,9 @@ function registerSocketHandlers(io) {
 
       const existing = room.players.get(socket.id);
       if (existing) {
-        room.players.set(socket.id, { ...existing, nickname, emoji, color });
+        room.players.set(socket.id, { ...existing, nickname: cleanNick, emoji, color });
       } else {
-        rm.addPlayer(pin, socket.id, nickname, emoji, color, token || null);
+        rm.addPlayer(pin, socket.id, cleanNick, emoji, color, token || null);
         socket.join(pin);
       }
 
@@ -81,7 +142,7 @@ function registerSocketHandlers(io) {
       io.to(pin).emit('GAME_STATE_CHANGE', { status: 'playing' });
     });
 
-    socket.on('NEXT_QUESTION', ({ pin }) => {
+    socket.on('NEXT_QUESTION', ({ pin, skip }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
 
@@ -90,88 +151,47 @@ function registerSocketHandlers(io) {
       const onSlide = curQ?.type === 'slide';
 
       if (room.questionPhase === null || room.questionPhase === 'results' || onSlide) {
-        room.currentQuestionIndex++;
-
-        if (room.currentQuestionIndex >= room.quiz.questions.length) {
-          const players = rm.getLeaderboard(room);
-          io.to(pin).emit('FINAL_PODIUM', { players });
-          room.status = 'ended';
-
-          // Persist game result for analytics
-          resultStore.save({
-            quizId: room.quiz.id || null,
-            quizTitle: room.quiz.title,
-            playedAt: new Date().toISOString(),
-            playerCount: players.length,
-            players: players.map((p, i) => ({
-              nickname: p.nickname, emoji: p.emoji, color: p.color,
-              score: p.score, rank: i + 1,
-            })),
-            questions: room.questionHistory.map(h => {
-              const q = room.quiz.questions[h.quizIndex];
-              const correctCount  = h.answerCounts[h.correctIndex] || 0;
-              const answeredCount = h.answerCounts.reduce((s, c) => s + c, 0);
-              return {
-                text: q.text,
-                type: q.type || 'multiple',
-                correctCount,
-                answeredCount,
-                correctPct: answeredCount > 0 ? Math.round(correctCount / answeredCount * 100) : 0,
-              };
-            }),
-          });
-          return;
-        }
-
-        const q = room.quiz.questions[room.currentQuestionIndex];
-        const isSlide = q.type === 'slide';
-
-        room.questionPhase = isSlide ? 'slide' : 'question';
-        room.currentAnswers = new Map();
-        room.questionStartTime = Date.now();
-
-        io.to(pin).emit('QUESTION_DATA', {
-          questionNumber: room.currentQuestionIndex + 1,
-          totalQuestions: room.quiz.questions.length,
-          text: q.text,
-          options: q.options || [],
-          timeLimit: q.timeLimit || 0,
-          image: q.image || null,
-          type: q.type || 'multiple',
-          showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
-        });
+        advanceRoom(io, room, pin);
 
       } else if (room.questionPhase === 'question') {
         const q     = room.quiz.questions[room.currentQuestionIndex];
         const qType = q.type || 'multiple';
-        room.questionPhase = 'results';
         const isLast = room.currentQuestionIndex === room.quiz.questions.length - 1;
+        room.questionPhase = 'results';
 
-        if (qType === 'wordcloud') {
-          const wordCounts = rm.getWordCounts(room);
+        // Record to question history (needed for analytics regardless of skip)
+        if (qType === 'wordcloud' || qType === 'opentext' || qType === 'droppin') {
           room.questionHistory.push({
             quizIndex: room.currentQuestionIndex,
             answerCounts: [room.currentAnswers.size],
             correctIndex: -1,
           });
-          io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
-
-        } else if (qType === 'droppin') {
-          const pins = rm.getPinCoords(room);
-          room.questionHistory.push({
-            quizIndex: room.currentQuestionIndex,
-            answerCounts: [room.currentAnswers.size],
-            correctIndex: -1,
-          });
-          io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
-
         } else {
           const answerCounts = rm.getAnswerCounts(room);
           const correctIndex = qType === 'poll' ? -1 : q.correct;
           room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex });
+        }
+
+        if (skip) {
+          advanceRoom(io, room, pin);
+          return;
+        }
+
+        // Emit results to all clients
+        if (qType === 'wordcloud') {
+          const wordCounts = rm.getWordCounts(room);
+          io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
+        } else if (qType === 'opentext') {
+          const answers = rm.getTextAnswers(room);
+          io.to(pin).emit('OPENTEXT_RESULTS', { answers, isLast });
+        } else if (qType === 'droppin') {
+          const pins = rm.getPinCoords(room);
+          io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
+        } else {
+          const h = room.questionHistory[room.questionHistory.length - 1];
           io.to(pin).emit('RESULTS_BREAKDOWN', {
-            correctIndex,
-            answerCounts,
+            correctIndex: h.correctIndex,
+            answerCounts: h.answerCounts,
             players: rm.getLeaderboard(room),
             isLast,
           });
@@ -188,7 +208,7 @@ function registerSocketHandlers(io) {
       const qType = q.type || 'multiple';
 
       let recordValue;
-      if (qType === 'wordcloud') {
+      if (qType === 'wordcloud' || qType === 'opentext') {
         recordValue = typeof word === 'string' ? word.trim().slice(0, 60) : '';
         if (!recordValue) return;
       } else if (qType === 'droppin') {
@@ -201,7 +221,7 @@ function registerSocketHandlers(io) {
       const { alreadyAnswered } = rm.recordAnswer(pin, socket.id, recordValue);
       if (alreadyAnswered) return;
 
-      const isScored = qType !== 'poll' && qType !== 'wordcloud' && qType !== 'droppin';
+      const isScored = qType !== 'poll' && qType !== 'wordcloud' && qType !== 'droppin' && qType !== 'opentext';
       let correct    = null;
       let scoreDelta = 0;
       if (isScored) {

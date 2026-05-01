@@ -123,6 +123,17 @@ function getWordCounts(room) {
   return counts;
 }
 
+function getTextAnswers(room) {
+  const result = [];
+  for (const [socketId, answer] of room.currentAnswers.entries()) {
+    if (typeof answer === 'string' && answer.trim()) {
+      const player = room.players.get(socketId);
+      if (player) result.push({ text: answer.trim(), nickname: player.nickname, emoji: player.emoji, color: player.color });
+    }
+  }
+  return result;
+}
+
 function getPinCoords(room) {
   const result = [];
   for (const [socketId, answer] of room.currentAnswers.entries()) {
@@ -182,6 +193,7 @@ module.exports = {
   getAnswerCounts,
   getAnswerCount,
   getWordCounts,
+  getTextAnswers,
   getPinCoords,
   getPlayerList,
   getLeaderboard,

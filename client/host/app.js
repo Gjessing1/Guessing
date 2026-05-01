@@ -23,8 +23,17 @@ const screens = {
   results:   document.getElementById('screen-results'),
   wordcloud: document.getElementById('screen-wordcloud'),
   droppin:   document.getElementById('screen-droppin'),
+  opentext:  document.getElementById('screen-opentext'),
   podium:    document.getElementById('screen-podium'),
 };
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
@@ -83,6 +92,15 @@ function showScreen(name) {
       if (quizzes.length === 1) cardsEl.querySelector('button').click();
     }
 
+    document.getElementById('copy-link-btn').addEventListener('click', () => {
+      const url = `${location.origin}/join/${pin}`;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copy-link-btn');
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => { btn.textContent = '🔗 Copy join link'; }, 2000);
+      });
+    });
+
     socket.emit('HOST_REGISTER', { pin });
   } catch (err) {
     console.error('Host init failed:', err);
@@ -102,6 +120,7 @@ function updateStartBtn() {
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
+  AudioManager.stop('lobby'); // Stop immediately, don't wait for GAME_STATE_CHANGE
   const showQ = document.getElementById('show-question-toggle').checked;
   socket.emit('GAME_START', { pin: gamePin, quizId: selectedQuizId, showQuestionOnPlayer: showQ });
 });
@@ -194,6 +213,12 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions: total, text, optio
 
 document.getElementById('show-results-btn').addEventListener('click', () => {
   socket.emit('NEXT_QUESTION', { pin: gamePin });
+});
+
+document.getElementById('skip-btn').addEventListener('click', () => {
+  clearInterval(timerInterval);
+  AudioManager.stop('tick-tock');
+  socket.emit('NEXT_QUESTION', { pin: gamePin, skip: true });
 });
 
 socket.on('ANSWER_COUNT', ({ count, total }) => {
@@ -362,6 +387,45 @@ socket.on('DROPPIN_RESULTS', ({ pins, image, isLast }) => {
 });
 
 document.getElementById('dp-next-btn').addEventListener('click', () => {
+  socket.emit('NEXT_QUESTION', { pin: gamePin });
+});
+
+socket.on('OPENTEXT_RESULTS', ({ answers, isLast }) => {
+  clearInterval(timerInterval);
+  AudioManager.stop('tick-tock');
+  AudioManager.play('applause');
+  isLastQuestion = isLast;
+
+  document.getElementById('ot-label').textContent =
+    `Question ${currentQuestionNumber} of ${totalQuestions} — Responses`;
+  document.getElementById('ot-q-text').textContent =
+    document.getElementById('q-text').textContent;
+  document.getElementById('ot-count').textContent =
+    `${answers.length} response${answers.length !== 1 ? 's' : ''}`;
+
+  const answersEl = document.getElementById('ot-answers');
+  answersEl.innerHTML = '';
+  if (answers.length === 0) {
+    answersEl.innerHTML = '<p class="text-gray-500 text-center py-8">No responses submitted</p>';
+  } else {
+    answers.forEach(({ text, nickname, emoji, color }) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3';
+      row.innerHTML = `
+        <div class="w-9 h-9 rounded-full flex items-center justify-center text-xl flex-shrink-0"
+             style="background-color:${color}">${emoji}</div>
+        <span class="text-gray-400 text-sm flex-shrink-0 truncate max-w-[6rem]">${escapeHtml(nickname)}:</span>
+        <span class="font-semibold flex-1 min-w-0 break-words">${escapeHtml(text)}</span>
+      `;
+      answersEl.appendChild(row);
+    });
+  }
+
+  document.getElementById('ot-next-btn').textContent = isLast ? 'See Final Scores →' : 'Next Question →';
+  showScreen('opentext');
+});
+
+document.getElementById('ot-next-btn').addEventListener('click', () => {
   socket.emit('NEXT_QUESTION', { pin: gamePin });
 });
 

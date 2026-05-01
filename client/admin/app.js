@@ -250,7 +250,7 @@ function renderQuestions() {
     return;
   }
 
-  const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F', slide: '🖼', poll: '📊', wordcloud: '☁️', droppin: '📍' };
+  const TYPE_BADGE = { lightning: '⚡', truefalse: 'T/F', slide: '🖼', poll: '📊', wordcloud: '☁️', droppin: '📍', opentext: '📝' };
 
   currentQuiz.questions.forEach((q, i) => {
     const isFirst = i === 0;
@@ -269,7 +269,7 @@ function renderQuestions() {
         <p class="font-semibold truncate">${escapeHtml(q.text)}</p>
         <p class="text-gray-400 text-xs mt-0.5">
           ${TYPE_BADGE[q.type] ? `<span class="font-bold text-yellow-400">${TYPE_BADGE[q.type]}</span>` : 'Multiple choice'}
-          ${q.type !== 'slide' && q.type !== 'wordcloud' && q.type !== 'droppin' && q.type !== 'poll'
+          ${q.type !== 'slide' && q.type !== 'wordcloud' && q.type !== 'droppin' && q.type !== 'poll' && q.type !== 'opentext'
             ? ` &middot; Correct: <span class="text-green-400 font-bold">${OPTION_LABELS[q.correct]}: ${escapeHtml(q.options[q.correct] || '')}</span>`
             : ''}
           ${q.timeLimit ? ` &middot; ${q.timeLimit}s` : ''}
@@ -321,9 +321,10 @@ function applyQuestionType(type) {
   const isWordCloud = type === 'wordcloud';
   const isDropPin   = type === 'droppin';
   const isPoll      = type === 'poll';
+  const isOpenText  = type === 'opentext';
 
-  const noOpts    = isSlide || isWordCloud || isDropPin;
-  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll;
+  const noOpts    = isSlide || isWordCloud || isDropPin || isOpenText;
+  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll || isOpenText;
   const noTime    = isSlide || isDropPin;
 
   document.getElementById('opts-section').style.display    = noOpts    ? 'none' : '';
@@ -438,7 +439,8 @@ function saveQuestion() {
   const isWordCloud = type === 'wordcloud';
   const isDropPin   = type === 'droppin';
   const isPoll      = type === 'poll';
-  const noOpts      = isSlide || isWordCloud || isDropPin;
+  const isOpenText  = type === 'opentext';
+  const noOpts      = isSlide || isWordCloud || isDropPin || isOpenText;
 
   const options = noOpts ? [] : isTF
     ? ['True', 'False']
@@ -453,7 +455,7 @@ function saveQuestion() {
   if (!noOpts && !isTF && options.some(o => !o)) { errEl.textContent = 'Fill in all 4 options'; return; }
   if (isDropPin && !pendingImageUrl) { errEl.textContent = 'Drop Pin requires an image'; return; }
 
-  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll;
+  const noCorrect = isSlide || isWordCloud || isDropPin || isPoll || isOpenText;
   const noTime    = isSlide || isDropPin;
 
   const q = {
@@ -541,6 +543,11 @@ async function openResultDetail(id) {
   document.getElementById('detail-meta').textContent =
     `${new Date(result.playedAt).toLocaleString()} · ${result.playerCount} player${result.playerCount !== 1 ? 's' : ''}`;
   document.getElementById('detail-export-btn').onclick = () => exportResult(id);
+  document.getElementById('detail-delete-btn').onclick = async () => {
+    if (!confirm('Delete this result?')) return;
+    await adminFetch(`/api/results/${id}`, { method: 'DELETE' });
+    loadResultsList();
+  };
 
   // Standings
   const medals = ['🥇', '🥈', '🥉'];

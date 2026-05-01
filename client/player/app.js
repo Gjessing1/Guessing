@@ -34,13 +34,14 @@ let lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswe
 // ── Screens ───────────────────────────────────────────────────────────────────
 
 const screens = {
-  pin:      document.getElementById('screen-pin'),
+  pin:       document.getElementById('screen-pin'),
   avatar:    document.getElementById('screen-avatar'),
   lobby:     document.getElementById('screen-lobby'),
   ready:     document.getElementById('screen-ready'),
   slide:     document.getElementById('screen-slide'),
   wordcloud: document.getElementById('screen-wordcloud'),
   droppin:   document.getElementById('screen-droppin'),
+  opentext:  document.getElementById('screen-opentext'),
   question:  document.getElementById('screen-question'),
   answered:  document.getElementById('screen-answered'),
   result:    document.getElementById('screen-result'),
@@ -193,9 +194,10 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
   clearInterval(timerInterval);
-  playerAnswer   = null;
-  pendingCoords  = null;
-  currentOptions = options;
+  playerAnswer      = null;
+  pendingCoords     = null;
+  currentOptions    = options;
+  lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
 
   // Slide: just show content, no timer or answers
   if (type === 'slide') {
@@ -224,6 +226,26 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
       if (wcRemaining <= 0) clearInterval(timerInterval);
     }, 1000);
     showScreen('wordcloud');
+    return;
+  }
+
+  // Open Text: free-text input with countdown
+  if (type === 'opentext') {
+    document.getElementById('ot-number').textContent = `Question ${questionNumber} of ${totalQuestions} 📝`;
+    document.getElementById('ot-text').textContent = text;
+    document.getElementById('ot-input').value = '';
+    document.getElementById('ot-timer').textContent = timeLimit;
+    const otBar = document.getElementById('ot-timer-bar');
+    otBar.style.transition = 'none'; otBar.style.width = '100%';
+    let otRemaining = timeLimit;
+    timerInterval = setInterval(() => {
+      otRemaining--;
+      document.getElementById('ot-timer').textContent = otRemaining;
+      const pct = Math.max(0, (otRemaining / timeLimit) * 100);
+      otBar.style.transition = 'width 1s linear'; otBar.style.width = pct + '%';
+      if (otRemaining <= 0) clearInterval(timerInterval);
+    }, 1000);
+    showScreen('opentext');
     return;
   }
 
@@ -323,6 +345,21 @@ document.getElementById('wc-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('wc-submit').click();
 });
 
+// ── Open Text submit ──────────────────────────────────────────────────────────
+
+document.getElementById('ot-submit').addEventListener('click', () => {
+  const word = document.getElementById('ot-input').value.trim();
+  if (!word || playerAnswer !== null) return;
+  playerAnswer = word;
+  AudioManager.play('submit');
+  socket.emit('ANSWER_SUBMIT', { pin: gamePin, word });
+  showScreen('answered');
+});
+
+document.getElementById('ot-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('ot-submit').click();
+});
+
 // ── Drop Pin tap + confirm ────────────────────────────────────────────────────
 
 let pendingCoords = null;
@@ -408,6 +445,21 @@ socket.on('DROPPIN_RESULTS', () => {
   const screen = document.getElementById('screen-result');
   document.getElementById('result-icon').textContent     = didAnswer ? '📍' : '😴';
   document.getElementById('result-text').textContent     = didAnswer ? 'Pin placed!' : 'No pin placed';
+  document.getElementById('result-answer').textContent   = '';
+  document.getElementById('result-delta').textContent    = '';
+  document.getElementById('result-standing').textContent = '';
+  document.getElementById('result-total').textContent    = '';
+  screen.style.backgroundColor = '#111827';
+  lastAnswerResult = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
+  showScreen('result');
+});
+
+socket.on('OPENTEXT_RESULTS', () => {
+  clearInterval(timerInterval);
+  const { didAnswer } = lastAnswerResult;
+  const screen = document.getElementById('screen-result');
+  document.getElementById('result-icon').textContent     = didAnswer ? '📝' : '😴';
+  document.getElementById('result-text').textContent     = didAnswer ? 'Response recorded!' : 'No response';
   document.getElementById('result-answer').textContent   = '';
   document.getElementById('result-delta').textContent    = '';
   document.getElementById('result-standing').textContent = '';

@@ -51,7 +51,8 @@
         <p id="lobby-pin" class="text-6xl md:text-8xl font-black tracking-widest text-white mb-4">------</p>
         <img id="qr-img" class="mb-4 rounded-xl hidden md:block" width="140" height="140" src="" alt="QR Code">
         <p class="text-gray-400 text-sm md:hidden mb-2">Join at <span id="join-url-mobile" class="text-white font-semibold"></span></p>
-        <div id="lobby-player-count" class="text-gray-500 mb-4">Waiting for players…</div>
+        <div id="lobby-player-count" class="text-gray-500 mb-2">Waiting for players…</div>
+        <button id="copy-link-btn" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors underline underline-offset-2 mb-4">🔗 Copy join link</button>
         <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-4"></div>
         <label class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-6 cursor-pointer w-full max-w-xs">
           <input type="checkbox" id="show-question-toggle" class="accent-indigo-500 w-4 h-4">
@@ -120,10 +121,16 @@
           <div id="answer-bar" class="bg-indigo-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
         </div>
       </div>
-      <button id="show-results-btn"
-        class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
-        Show Results →
-      </button>
+      <div class="flex gap-2">
+        <button id="skip-btn"
+          class="bg-gray-700 hover:bg-gray-600 text-white text-sm md:text-base font-bold py-2 md:py-3 px-4 md:px-6 rounded-xl transition-colors">
+          Skip →
+        </button>
+        <button id="show-results-btn"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
+          Show Results →
+        </button>
+      </div>
     </div>
   </div>
 
@@ -182,6 +189,24 @@
     </div>
     <div class="px-4 md:px-8 py-4 border-t border-gray-800 flex justify-end">
       <button id="dp-next-btn"
+        class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
+        Next Question →
+      </button>
+    </div>
+  </div>
+
+  <!-- Screen: Open Text Results -->
+  <div id="screen-opentext" class="hidden min-h-screen flex flex-col">
+    <div class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-gray-800">
+      <span id="ot-label" class="text-gray-400 font-semibold text-sm md:text-base">Open Text</span>
+      <span id="ot-count" class="text-gray-500 text-sm"></span>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 md:p-8">
+      <p id="ot-q-text" class="text-lg md:text-xl font-bold mb-6 text-center max-w-2xl mx-auto"></p>
+      <div id="ot-answers" class="space-y-2 max-w-2xl mx-auto"></div>
+    </div>
+    <div class="px-4 md:px-8 py-4 border-t border-gray-800 flex justify-end">
+      <button id="ot-next-btn"
         class="bg-indigo-600 hover:bg-indigo-500 text-white text-base md:text-xl font-bold py-2 md:py-3 px-6 md:px-10 rounded-xl transition-colors">
         Next Question →
       </button>

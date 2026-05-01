@@ -121,10 +121,16 @@
         <p id="detail-title" class="font-bold text-lg truncate"></p>
         <p id="detail-meta" class="text-gray-400 text-sm"></p>
       </div>
-      <button id="detail-export-btn"
-        class="flex-shrink-0 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">
-        Export CSV
-      </button>
+      <div class="flex gap-2 flex-shrink-0">
+        <button id="detail-export-btn"
+          class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">
+          Export CSV
+        </button>
+        <button id="detail-delete-btn"
+          class="bg-gray-700 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-colors">
+          Delete
+        </button>
+      </div>
     </header>
     <div class="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 space-y-8">
       <div>
@@ -152,6 +158,7 @@
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="poll" class="accent-blue-400"> 📊 Poll</label>
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="wordcloud" class="accent-teal-400"> ☁️ Word Cloud</label>
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="droppin" class="accent-orange-400"> 📍 Drop Pin</label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="opentext" class="accent-pink-400"> 📝 Open Text</label>
       </div>
 
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Question text</label>

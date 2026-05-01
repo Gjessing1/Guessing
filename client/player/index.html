@@ -142,6 +142,27 @@
     </div>
   </div>
 
+  <!-- Screen 4e: Open Text input -->
+  <div id="screen-opentext" class="hidden h-screen flex flex-col bg-gray-900">
+    <div class="flex justify-between items-center px-safe flex-shrink-0" style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: 0.25rem;">
+      <span id="ot-number" class="text-gray-400 text-sm">Question 1 of 5</span>
+      <span id="ot-timer" class="text-white font-black text-2xl">20</span>
+    </div>
+    <div class="w-full bg-gray-800 h-1.5 flex-shrink-0">
+      <div id="ot-timer-bar" class="h-1.5 bg-indigo-500" style="width:100%;transition:none"></div>
+    </div>
+    <div class="flex-1 flex flex-col items-center justify-center px-safe gap-5">
+      <p id="ot-text" class="text-white text-xl font-bold text-center leading-snug"></p>
+      <input id="ot-input" type="text" maxlength="60" placeholder="Type your answer…" autocomplete="off"
+        class="w-full max-w-sm text-center text-xl bg-gray-800 text-white rounded-xl p-3 border-2 border-gray-700 focus:border-indigo-500 outline-none">
+    </div>
+    <div class="px-safe flex-shrink-0" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); padding-top: 0.5rem;">
+      <button id="ot-submit" class="w-full bg-indigo-600 active:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-colors text-xl">
+        Submit
+      </button>
+    </div>
+  </div>
+
   <!-- Screen 5: Question -->
   <div id="screen-question" class="hidden h-screen flex flex-col bg-gray-900">
     <div class="w-full bg-gray-800 h-2 flex-shrink-0">
