@@ -316,7 +316,7 @@ document.getElementById('add-question-btn').addEventListener('click', () => open
 // ── Question Modal ────────────────────────────────────────────────────────────
 
 const TYPE_NOTES = {
-  lightning: { text: '⚡ Flat 500 pts for any correct answer — no time bonus regardless of speed. Perfect for trivia where reaction time should not matter.', cls: 'bg-yellow-400/10 text-yellow-300' },
+  lightning: { text: '⚡ 2× points multiplier! Scores range 1000–2000 pts — fastest correct answer gets the full 2000. A flash screen plays before the question to signal the boost. Use this when you want speed to matter even more.', cls: 'bg-yellow-400/10 text-yellow-300' },
   truefalse: { text: 'Pre-filled as True / False — you can rename both options to fit your question (e.g. Yes / No, Agree / Disagree).', cls: 'bg-gray-700 text-gray-400' },
 };
 

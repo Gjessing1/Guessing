@@ -118,3 +118,7 @@
 - [x] If host disable team mode it should dissapear from the the player screen as an option to pick team.
 - [x] Default sound mode should also have cheering on final scoreboard and confetti.
 
+- [x] Lightning Round (sometimes tied to fast-paced game modes like “Double Points” or rapid-fire questions) is basically a segment where speed matters even more than usual. This is not correctly implemented, fix it and also fix the explanation modal in admin editor. Also make a screen flash with lightning round 1,5x or 2x speed points amplifier before the question, this makes sure everyone understands the mechanics.
+- [x] Light mode and dark mode if not already implemented (selectable only by host)
+- [x] Make sure drop the pin has required a image for the question when editing the quiz, only the image will show for the players and they can only place the pin within the image, small confirmation box beneath image to make sure they dont accidently place and submit.
+

@@ -44,6 +44,7 @@ const screens = {
   avatar:    document.getElementById('screen-avatar'),
   lobby:     document.getElementById('screen-lobby'),
   ready:     document.getElementById('screen-ready'),
+  lightning: document.getElementById('screen-lightning'),
   slide:     document.getElementById('screen-slide'),
   wordcloud: document.getElementById('screen-wordcloud'),
   droppin:   document.getElementById('screen-droppin'),
@@ -290,6 +291,11 @@ socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
 });
 
 // ── Socket: question flow ─────────────────────────────────────────────────────
+
+socket.on('LIGHTNING_INTRO', () => {
+  showScreen('lightning');
+  // QUESTION_DATA arrives 2 s later from the server
+});
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
   clearInterval(timerInterval);

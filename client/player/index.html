@@ -116,14 +116,22 @@
     <p class="text-indigo-300 mt-3 text-lg">Question coming up…</p>
   </div>
 
-  <!-- Screen 4b: Slide -->
+  <!-- Screen 4b: Lightning Intro -->
+  <div id="screen-lightning" class="hidden min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe" style="background:linear-gradient(135deg,#1c1003 0%,#3d2800 60%,#1c1003 100%)">
+    <div class="text-8xl mb-4 animate-bounce select-none">⚡</div>
+    <p class="text-4xl font-black text-yellow-300 mb-2">LIGHTNING!</p>
+    <p class="text-xl font-bold text-white mb-1">2× Points</p>
+    <p class="text-gray-400 text-sm">Fastest answer scores the most</p>
+  </div>
+
+  <!-- Screen 4c: Slide -->
   <div id="screen-slide" class="hidden min-h-screen flex flex-col items-center justify-center bg-gray-900 px-safe pt-safe pb-safe gap-6">
     <img id="slide-image" class="hidden max-h-52 rounded-2xl object-contain" src="" alt="" onerror="this.classList.add('hidden')">
     <p id="slide-text" class="text-2xl font-bold text-center leading-snug"></p>
     <p class="text-gray-500 text-sm animate-pulse">Waiting for host…</p>
   </div>
 
-  <!-- Screen 4c: Word Cloud input -->
+  <!-- Screen 4d: Word Cloud input -->
   <div id="screen-wordcloud" class="hidden h-screen flex flex-col bg-gray-900">
     <div class="flex justify-between items-center px-safe flex-shrink-0" style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: 0.25rem;">
       <span id="wc-number" class="text-gray-400 text-sm">Question 1 of 5</span>
@@ -144,7 +152,7 @@
     </div>
   </div>
 
-  <!-- Screen 4d: Drop Pin -->
+  <!-- Screen 4e: Drop Pin -->
   <div id="screen-droppin" class="hidden h-screen flex flex-col bg-gray-900">
     <div class="flex justify-between items-center px-safe flex-shrink-0" style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: 0.25rem;">
       <span id="dp-number" class="text-gray-400 text-sm">Question 1 of 5</span>
@@ -155,7 +163,7 @@
     </div>
     <p id="dp-text" class="px-safe text-center font-bold text-base py-2 flex-shrink-0"></p>
     <div id="dp-area" class="flex-1 relative cursor-crosshair overflow-hidden" style="margin: 0 max(1rem, env(safe-area-inset-left)) 0 max(1rem, env(safe-area-inset-right));">
-      <img id="dp-image" class="w-full h-full object-contain" src="" alt="">
+      <img id="dp-image" class="w-full h-full object-cover" src="" alt="">
       <div id="dp-bg" class="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
         Tap to place your pin
       </div>

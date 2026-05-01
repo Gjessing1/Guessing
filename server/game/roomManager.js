@@ -176,10 +176,11 @@ const TIME_BONUS_MAX = 500;
 
 function calcScore(room) {
   const q = room.quiz.questions[room.currentQuestionIndex];
-  if (q.type === 'lightning') return BASE_SCORE;
-  const elapsed  = Math.min(Date.now() - room.questionStartTime, q.timeLimit * 1000);
+  const elapsed  = Math.min(Math.max(0, Date.now() - room.questionStartTime), q.timeLimit * 1000);
   const fraction = 1 - elapsed / (q.timeLimit * 1000);
-  return BASE_SCORE + Math.round(TIME_BONUS_MAX * fraction);
+  const base = BASE_SCORE + Math.round(TIME_BONUS_MAX * fraction);
+  // Lightning: 2× multiplier — speed matters even more (range: 1000–2000 pts)
+  return q.type === 'lightning' ? Math.round(base * 2) : base;
 }
 
 function applyScore(pin, socketId, delta) {

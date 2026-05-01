@@ -49,15 +49,15 @@ function advanceRoom(io, room, pin) {
   }
 
   const q = room.quiz.questions[room.currentQuestionIndex];
-  const isSlide = q.type === 'slide';
+  const isSlide     = q.type === 'slide';
+  const isLightning = q.type === 'lightning';
 
   room.questionPhase = isSlide ? 'slide' : 'question';
   room.currentAnswers = new Map();
   room.answerTimes = new Map();
   room.teamsTriggered = new Set();
-  room.questionStartTime = Date.now();
 
-  io.to(pin).emit('QUESTION_DATA', {
+  const questionData = {
     questionNumber: room.currentQuestionIndex + 1,
     totalQuestions: room.quiz.questions.length,
     text: q.text,
@@ -66,7 +66,22 @@ function advanceRoom(io, room, pin) {
     image: q.image || null,
     type: q.type || 'multiple',
     showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
-  });
+  };
+
+  if (isLightning) {
+    // Show a 2-second intro flash; questionStartTime is set AFTER so intro
+    // doesn't consume scoring time.
+    room.questionStartTime = Date.now() + 99999; // sentinel while intro plays
+    io.to(pin).emit('LIGHTNING_INTRO');
+    setTimeout(() => {
+      if (!rm.getRoom(pin)) return; // room may have been cleaned up
+      room.questionStartTime = Date.now();
+      io.to(pin).emit('QUESTION_DATA', questionData);
+    }, 2000);
+  } else {
+    room.questionStartTime = Date.now();
+    io.to(pin).emit('QUESTION_DATA', questionData);
+  }
 }
 
 function registerSocketHandlers(io) {

@@ -25,6 +25,7 @@ const MAX_TEAM_SIZE = 4;
 const screens = {
   lobby:     document.getElementById('screen-lobby'),
   ready:     document.getElementById('screen-ready'),
+  lightning: document.getElementById('screen-lightning'),
   slide:     document.getElementById('screen-slide'),
   question:  document.getElementById('screen-question'),
   results:   document.getElementById('screen-results'),
@@ -66,6 +67,17 @@ function showScreen(name) {
   });
   // Resume lobby music on first interaction (browser autoplay policy)
   document.addEventListener('click', () => AudioManager.resume('lobby'), { once: true });
+
+  // Light / dark theme toggle (host only)
+  const themeBtn = document.getElementById('theme-btn');
+  let lightMode = localStorage.getItem('hostTheme') === 'light';
+  function applyTheme() {
+    document.body.classList.toggle('light', lightMode);
+    themeBtn.textContent = lightMode ? '☀️' : '🌙';
+    localStorage.setItem('hostTheme', lightMode ? 'light' : 'dark');
+  }
+  applyTheme();
+  themeBtn.addEventListener('click', () => { lightMode = !lightMode; applyTheme(); });
 
   // Sound mode toggle (persisted to localStorage)
   const SOUND_DESCS = {
@@ -234,6 +246,13 @@ socket.on('GAME_STATE_CHANGE', ({ status, pin }) => {
     AudioManager.stopAll();
     location.reload();
   }
+});
+
+socket.on('LIGHTNING_INTRO', () => {
+  AudioManager.stop('tick-tock');
+  AudioManager.play('game-start');
+  showScreen('lightning');
+  // QUESTION_DATA arrives from server after 2 s
 });
 
 // ── Question ──────────────────────────────────────────────────────────────────
