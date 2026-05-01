@@ -315,6 +315,11 @@ document.getElementById('add-question-btn').addEventListener('click', () => open
 
 // ── Question Modal ────────────────────────────────────────────────────────────
 
+const TYPE_NOTES = {
+  lightning: { text: '⚡ Flat 500 pts for any correct answer — no time bonus regardless of speed. Perfect for trivia where reaction time should not matter.', cls: 'bg-yellow-400/10 text-yellow-300' },
+  truefalse: { text: 'Pre-filled as True / False — you can rename both options to fit your question (e.g. Yes / No, Agree / Disagree).', cls: 'bg-gray-700 text-gray-400' },
+};
+
 function applyQuestionType(type) {
   const isTF        = type === 'truefalse';
   const isSlide     = type === 'slide';
@@ -330,20 +335,30 @@ function applyQuestionType(type) {
   document.getElementById('opts-section').style.display    = noOpts    ? 'none' : '';
   document.getElementById('correct-section').style.display = noCorrect ? 'none' : '';
   document.getElementById('time-section').style.display    = noTime    ? 'none' : '';
+  document.getElementById('shownames-section').style.display = isOpenText ? '' : 'none';
 
   document.getElementById('opt-cd-row').style.display  = (isTF || noOpts) ? 'none' : 'contents';
   document.getElementById('correct-cd').style.display  = (isTF || noOpts) ? 'none' : 'contents';
 
+  // True/False: pre-fill defaults but keep editable so host can rename
   if (isTF) {
-    document.getElementById('q-opt-a').value = 'True';
-    document.getElementById('q-opt-b').value = 'False';
-    document.getElementById('q-opt-a').readOnly = true;
-    document.getElementById('q-opt-b').readOnly = true;
+    if (!document.getElementById('q-opt-a').value) document.getElementById('q-opt-a').value = 'True';
+    if (!document.getElementById('q-opt-b').value) document.getElementById('q-opt-b').value = 'False';
     const cur = parseInt(document.querySelector('input[name="q-correct"]:checked')?.value ?? 0);
     document.querySelector(`input[name="q-correct"][value="${cur > 1 ? 0 : cur}"]`).checked = true;
+  }
+  document.getElementById('q-opt-a').readOnly = false;
+  document.getElementById('q-opt-b').readOnly = false;
+
+  // Type-specific help note
+  const noteEl = document.getElementById('type-note');
+  const note = TYPE_NOTES[type];
+  if (note) {
+    noteEl.textContent = note.text;
+    noteEl.className = `text-xs rounded-lg px-3 py-2 mb-3 ${note.cls}`;
+    noteEl.classList.remove('hidden');
   } else {
-    document.getElementById('q-opt-a').readOnly = false;
-    document.getElementById('q-opt-b').readOnly = false;
+    noteEl.classList.add('hidden');
   }
 }
 
@@ -366,6 +381,7 @@ function openQuestionModal(idx) {
   document.getElementById('q-opt-d').value = q?.options?.[3] || '';
   document.querySelector(`input[name="q-correct"][value="${q?.correct ?? 0}"]`).checked = true;
   document.getElementById('q-time').value = q?.timeLimit ?? 20;
+  document.getElementById('q-show-names').checked = q?.showNames !== false;
   document.getElementById('modal-error').textContent = '';
   document.getElementById('q-image-input').value = '';
   applyQuestionType(type);
@@ -443,7 +459,10 @@ function saveQuestion() {
   const noOpts      = isSlide || isWordCloud || isDropPin || isOpenText;
 
   const options = noOpts ? [] : isTF
-    ? ['True', 'False']
+    ? [
+        document.getElementById('q-opt-a').value.trim() || 'True',
+        document.getElementById('q-opt-b').value.trim() || 'False',
+      ]
     : [
         document.getElementById('q-opt-a').value.trim(),
         document.getElementById('q-opt-b').value.trim(),
@@ -465,6 +484,7 @@ function saveQuestion() {
     timeLimit: noTime ? 0 : timeLimit,
   };
   if (type !== 'multiple') q.type = type;
+  if (type === 'opentext') q.showNames = document.getElementById('q-show-names').checked;
   if (pendingImageUrl) q.image = pendingImageUrl;
 
   if (editingIndex !== null) {

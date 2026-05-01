@@ -202,6 +202,8 @@
         <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q-type" value="opentext" class="accent-pink-400"> 📝 Open Text</label>
       </div>
 
+      <p id="type-note" class="hidden text-xs rounded-lg px-3 py-2 mb-3"></p>
+
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-1">Question text</label>
       <textarea id="q-text" rows="3" placeholder="Enter your question…"
         class="w-full bg-gray-700 rounded-xl p-3 border-2 border-gray-600 focus:border-indigo-500 outline-none mb-4 resize-none text-base"></textarea>
@@ -234,6 +236,12 @@
       </div>
 
       </div><!-- /opts-section -->
+      <div id="shownames-section" style="display:none">
+        <label class="flex items-center gap-2 text-sm text-gray-400 mb-4 cursor-pointer">
+          <input type="checkbox" id="q-show-names" class="accent-indigo-500 w-4 h-4" checked>
+          Show player name alongside their response (host screen)
+        </label>
+      </div>
       <div id="correct-section">
       <label class="block text-gray-400 text-xs uppercase tracking-wider mb-2">Correct answer</label>
       <div class="flex gap-3 mb-4">
