@@ -320,6 +320,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     let wcRemaining = timeLimit;
     timerInterval = setInterval(() => {
       wcRemaining--;
+      wcRemaining = Math.min(wcRemaining, playerTimerCap);
       document.getElementById('wc-timer').textContent = wcRemaining;
       const pct = Math.max(0, (wcRemaining / timeLimit) * 100);
       wcBar.style.transition = 'width 1s linear'; wcBar.style.width = pct + '%';
@@ -340,6 +341,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     let otRemaining = timeLimit;
     timerInterval = setInterval(() => {
       otRemaining--;
+      otRemaining = Math.min(otRemaining, playerTimerCap);
       document.getElementById('ot-timer').textContent = otRemaining;
       const pct = Math.max(0, (otRemaining / timeLimit) * 100);
       otBar.style.transition = 'width 1s linear'; otBar.style.width = pct + '%';
@@ -359,17 +361,23 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     else { dpImg.classList.add('hidden'); dpImg.src = ''; }
     document.getElementById('dp-bg').style.display = '';
     document.getElementById('dp-marker').classList.add('hidden');
-    document.getElementById('dp-confirm').disabled = true;
-    document.getElementById('dp-confirm').textContent = 'Tap the image first';
+    const dpConfirm = document.getElementById('dp-confirm');
+    dpConfirm.disabled = true;
+    dpConfirm.textContent = 'Tap the image to place your pin';
     const dpBar = document.getElementById('dp-timer-bar');
     dpBar.style.transition = 'none'; dpBar.style.width = '100%';
     let dpRemaining = timeLimit;
     timerInterval = setInterval(() => {
       dpRemaining--;
+      dpRemaining = Math.min(dpRemaining, playerTimerCap);
       document.getElementById('dp-timer').textContent = dpRemaining;
       const pct = Math.max(0, (dpRemaining / timeLimit) * 100);
       dpBar.style.transition = 'width 1s linear'; dpBar.style.width = pct + '%';
-      if (dpRemaining <= 0) clearInterval(timerInterval);
+      if (dpRemaining <= 0) {
+        clearInterval(timerInterval);
+        // Auto-submit placed-but-unconfirmed pin so it isn't lost
+        if (pendingCoords && playerAnswer === null) dpConfirm.click();
+      }
     }, 1000);
     showScreen('droppin');
     return;
@@ -481,7 +489,7 @@ document.getElementById('dp-area').addEventListener('click', (e) => {
 
   const btn = document.getElementById('dp-confirm');
   btn.disabled = false;
-  btn.textContent = 'Confirm pin';
+  btn.textContent = 'Confirm pin ✓';
 });
 
 document.getElementById('dp-confirm').addEventListener('click', () => {

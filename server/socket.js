@@ -226,7 +226,7 @@ function registerSocketHandlers(io) {
           io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
         } else if (qType === 'opentext') {
           const answers = rm.getTextAnswers(room);
-          io.to(pin).emit('OPENTEXT_RESULTS', { answers, isLast });
+          io.to(pin).emit('OPENTEXT_RESULTS', { answers, isLast, showNames: q.showNames !== false });
         } else if (qType === 'droppin') {
           const pins = rm.getPinCoords(room);
           io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });

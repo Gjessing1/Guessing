@@ -110,8 +110,8 @@
 
 ## Phase 14: improvements and stability
 - [x] When all players have answerd the timer should go to 0 instead of waiting the full time
-- [ ] Text response questions should be option to choose in quiz editor if should show player name when submitted, default is yes
-- [ ] Drop the pin question submitted without dropping a pin, you should place it and maybe add an actual submit button after placement?
+- [x] Text response questions should be option to choose in quiz editor if should show player name when submitted, default is yes
+- [x] Drop the pin question submitted without dropping a pin, you should place it and maybe add an actual submit button after placement?
 - [x] Explain clearly what lightning round is when creating the lightning round question.
 - [x] True false should be able to have other naming options, but keep true false as default.
 - [x] Host menu should have small text explaining the sound modes, showing only the explanation of the one currently active and what it does. Silent is self explainatory

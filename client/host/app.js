@@ -480,7 +480,7 @@ document.getElementById('dp-next-btn').addEventListener('click', () => {
   socket.emit('NEXT_QUESTION', { pin: gamePin });
 });
 
-socket.on('OPENTEXT_RESULTS', ({ answers, isLast }) => {
+socket.on('OPENTEXT_RESULTS', ({ answers, isLast, showNames }) => {
   clearInterval(timerInterval);
   AudioManager.stop('tick-tock');
   AudioManager.play('applause');
@@ -501,13 +501,18 @@ socket.on('OPENTEXT_RESULTS', ({ answers, isLast }) => {
   } else {
     answers.forEach(({ text, nickname, emoji, color }) => {
       const row = document.createElement('div');
-      row.className = 'flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3';
-      row.innerHTML = `
-        <div class="w-9 h-9 rounded-full flex items-center justify-center text-xl flex-shrink-0"
-             style="background-color:${color}">${emoji}</div>
-        <span class="text-gray-400 text-sm flex-shrink-0 truncate max-w-[6rem]">${escapeHtml(nickname)}:</span>
-        <span class="font-semibold flex-1 min-w-0 break-words">${escapeHtml(text)}</span>
-      `;
+      if (showNames !== false) {
+        row.className = 'flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3';
+        row.innerHTML = `
+          <div class="w-9 h-9 rounded-full flex items-center justify-center text-xl flex-shrink-0"
+               style="background-color:${color}">${emoji}</div>
+          <span class="text-gray-400 text-sm flex-shrink-0 truncate max-w-[6rem]">${escapeHtml(nickname)}:</span>
+          <span class="font-semibold flex-1 min-w-0 break-words">${escapeHtml(text)}</span>
+        `;
+      } else {
+        row.className = 'bg-gray-800 rounded-xl px-4 py-3';
+        row.innerHTML = `<span class="font-semibold">${escapeHtml(text)}</span>`;
+      }
       answersEl.appendChild(row);
     });
   }
