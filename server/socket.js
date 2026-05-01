@@ -91,7 +91,8 @@ function registerSocketHandlers(io) {
 
       const cleanNick = sanitize(nickname);
       if (!cleanNick) return socket.emit('ERROR', { message: 'Invalid nickname' });
-      const cleanTeam = ['red', 'blue', 'yellow', 'green'].includes(team) ? team : null;
+      // Only accept a team choice if the host has enabled team mode
+      const cleanTeam = room.teamsEnabled && ['red', 'blue', 'yellow', 'green'].includes(team) ? team : null;
 
       // Mid-game reconnect via session token
       if (token && room.status === 'playing') {
@@ -129,6 +130,20 @@ function registerSocketHandlers(io) {
 
       io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(room));
       socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
+    });
+
+    socket.on('HOST_SETTING', ({ pin, teamsEnabled }) => {
+      const room = rm.getRoom(pin);
+      if (!room || room.hostSocketId !== socket.id || room.status !== 'lobby') return;
+      if (typeof teamsEnabled === 'boolean') {
+        room.teamsEnabled = teamsEnabled;
+        // Clear teams from all players if host disables team mode
+        if (!teamsEnabled) {
+          for (const player of room.players.values()) player.team = null;
+        }
+        io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(room));
+        io.to(pin).emit('LOBBY_UPDATE', { teamsEnabled });
+      }
     });
 
     socket.on('GAME_START', ({ pin, quizId, showQuestionOnPlayer }) => {

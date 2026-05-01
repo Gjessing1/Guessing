@@ -111,6 +111,10 @@ function showScreen(name) {
       if (quizzes.length === 1) cardsEl.querySelector('button').click();
     }
 
+    document.getElementById('teams-toggle').addEventListener('change', (e) => {
+      socket.emit('HOST_SETTING', { pin, teamsEnabled: e.target.checked });
+    });
+
     document.getElementById('copy-link-btn').addEventListener('click', () => {
       const url = `${location.origin}/join/${pin}`;
       navigator.clipboard.writeText(url).then(() => {
@@ -512,13 +516,19 @@ socket.on('FINAL_PODIUM', ({ players }) => {
     listEl.appendChild(row);
   });
 
-  // Team leaderboard — only shown when players have chosen teams
-  const teamScores = {};
+  // Team leaderboard — only shown when players have chosen teams.
+  // Ranked by average score per player so team size doesn't matter.
+  const teamTotals = {};
+  const teamCounts = {};
   players.forEach(p => {
     if (!p.team) return;
-    teamScores[p.team] = (teamScores[p.team] || 0) + p.score;
+    teamTotals[p.team] = (teamTotals[p.team] || 0) + p.score;
+    teamCounts[p.team] = (teamCounts[p.team] || 0) + 1;
   });
-  const teamEntries = Object.entries(teamScores).sort(([, a], [, b]) => b - a);
+  const teamEntries = Object.keys(teamTotals)
+    .map(team => ({ team, avg: Math.round(teamTotals[team] / teamCounts[team]), count: teamCounts[team] }))
+    .sort((a, b) => b.avg - a.avg);
+
   const teamPodium = document.getElementById('team-podium');
   const teamList   = document.getElementById('team-scores-list');
   teamList.innerHTML = '';
@@ -526,14 +536,17 @@ socket.on('FINAL_PODIUM', ({ players }) => {
   if (teamEntries.length > 0) {
     teamPodium.classList.remove('hidden');
     const teamMedals = ['🥇', '🥈', '🥉'];
-    teamEntries.forEach(([team, score], i) => {
+    teamEntries.forEach(({ team, avg, count }, i) => {
       const row = document.createElement('div');
       row.className = 'podium-row flex items-center gap-3 rounded-xl px-4 py-3';
       row.style.cssText = `background-color:${TEAM_COLORS[team]}33;animation-delay:${900 + i * 100}ms`;
       row.innerHTML = `
         <span class="text-xl w-8 text-center">${teamMedals[i] || `${i + 1}.`}</span>
         <span class="flex-1 font-bold text-lg">${TEAM_LABELS[team] || team}</span>
-        <span class="font-black text-xl">${score.toLocaleString()} pts</span>
+        <div class="text-right leading-tight">
+          <p class="font-black text-xl">${avg.toLocaleString()} pts</p>
+          <p class="text-gray-400 text-xs">avg · ${count} player${count !== 1 ? 's' : ''}</p>
+        </div>
       `;
       teamList.appendChild(row);
     });

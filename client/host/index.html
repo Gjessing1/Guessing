@@ -54,10 +54,16 @@
         <div id="lobby-player-count" class="text-gray-500 mb-2">Waiting for players…</div>
         <button id="copy-link-btn" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors underline underline-offset-2 mb-4">🔗 Copy join link</button>
         <div id="quiz-cards" class="w-full max-w-xs space-y-2 mb-4"></div>
-        <label class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-3 cursor-pointer w-full max-w-xs">
-          <input type="checkbox" id="show-question-toggle" class="accent-indigo-500 w-4 h-4">
-          Show question text on player screens
-        </label>
+        <div class="flex flex-col gap-2 mb-4 w-full max-w-xs">
+          <label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+            <input type="checkbox" id="show-question-toggle" class="accent-indigo-500 w-4 h-4">
+            Show question text on player screens
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+            <input type="checkbox" id="teams-toggle" class="accent-indigo-500 w-4 h-4">
+            Enable team mode
+          </label>
+        </div>
         <div class="flex items-center justify-center gap-2 text-sm text-gray-400 mb-6 w-full max-w-xs">
           <span>Sound:</span>
           <div class="flex rounded-lg overflow-hidden border border-gray-700 text-xs font-semibold">

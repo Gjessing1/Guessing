@@ -52,7 +52,7 @@ function routes(app) {
     const room = getRoom(req.params.pin);
     if (!room) return res.status(404).json({ error: 'Room not found' });
     if (room.status !== 'lobby') return res.status(409).json({ error: 'Game already in progress' });
-    res.json({ pin: room.pin, playerCount: room.players.size });
+    res.json({ pin: room.pin, playerCount: room.players.size, teamsEnabled: room.teamsEnabled });
   });
 
   // ── Admin auth ────────────────────────────────────────────────────────────────

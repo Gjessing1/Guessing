@@ -16,6 +16,7 @@ function createRoom() {
     players: new Map(),        // socketId → { nickname, emoji, color, score, token, team }
     tokenIndex: new Map(),     // token → socketId  (for reconnect)
     status: 'lobby',
+    teamsEnabled: false,
     quiz: null,
     currentQuestionIndex: -1,
     questionPhase: null,       // 'question' | 'results' | null

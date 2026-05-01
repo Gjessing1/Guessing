@@ -22,6 +22,7 @@ const COLORS = [
 const OPTION_COLORS = ['bg-red-600','bg-blue-600','bg-yellow-500','bg-green-600'];
 
 let gamePin        = null;
+let teamsEnabled   = false;
 let playerNickname = '';
 let playerEmoji    = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
 let playerColor    = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -92,6 +93,18 @@ document.getElementById('pin-btn').addEventListener('click', submitPin);
 const qrPin = new URLSearchParams(location.search).get('pin');
 if (qrPin) { pinInput.value = qrPin; submitPin(); }
 
+function applyTeamsEnabled(enabled) {
+  teamsEnabled = enabled;
+  const section = document.getElementById('team-section');
+  if (enabled) {
+    section.classList.remove('hidden');
+  } else {
+    section.classList.add('hidden');
+    playerTeam = null;
+    document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('border-white'));
+  }
+}
+
 async function submitPin() {
   const pin = pinInput.value.trim();
   if (pin.length !== 6) return showError(pinError, 'Enter a 6-digit PIN');
@@ -100,6 +113,7 @@ async function submitPin() {
     const data = await res.json();
     if (!res.ok) return showError(pinError, data.error || 'Invalid PIN');
     gamePin = pin;
+    applyTeamsEnabled(data.teamsEnabled || false);
     showScreen('avatar');
     document.getElementById('nickname-input').focus();
   } catch {
@@ -147,12 +161,17 @@ COLORS.forEach((color, i) => {
 
 updatePreview();
 
-// Team picker
+// Team picker — toggles selection (tap again to deselect)
 document.querySelectorAll('.team-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    const isSelected = btn.classList.contains('border-white');
     document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('border-white'));
-    btn.classList.add('border-white');
-    playerTeam = btn.dataset.team === 'none' ? null : btn.dataset.team;
+    if (!isSelected) {
+      btn.classList.add('border-white');
+      playerTeam = btn.dataset.team;
+    } else {
+      playerTeam = null;
+    }
   });
 });
 
@@ -197,6 +216,10 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     showScreen('pin');
     showError(pinError, reason === 'host_disconnected' ? 'Host disconnected' : 'Game ended');
   }
+});
+
+socket.on('LOBBY_UPDATE', ({ teamsEnabled: enabled }) => {
+  applyTeamsEnabled(enabled);
 });
 
 socket.on('PLAYER_LIST_UPDATE', (players) => {
