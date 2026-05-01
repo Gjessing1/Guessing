@@ -330,7 +330,7 @@ function applyQuestionType(type) {
 
   const noOpts    = isSlide || isWordCloud || isDropPin || isOpenText;
   const noCorrect = isSlide || isWordCloud || isDropPin || isPoll || isOpenText;
-  const noTime    = isSlide || isDropPin;
+  const noTime    = isSlide;
 
   document.getElementById('opts-section').style.display    = noOpts    ? 'none' : '';
   document.getElementById('correct-section').style.display = noCorrect ? 'none' : '';
@@ -380,7 +380,7 @@ function openQuestionModal(idx) {
   document.getElementById('q-opt-c').value = q?.options?.[2] || '';
   document.getElementById('q-opt-d').value = q?.options?.[3] || '';
   document.querySelector(`input[name="q-correct"][value="${q?.correct ?? 0}"]`).checked = true;
-  document.getElementById('q-time').value = q?.timeLimit ?? 20;
+  document.getElementById('q-time').value = q?.timeLimit || (isDropPin ? 30 : 20);
   document.getElementById('q-show-names').checked = q?.showNames !== false;
   document.getElementById('modal-error').textContent = '';
   document.getElementById('q-image-input').value = '';
@@ -475,7 +475,7 @@ function saveQuestion() {
   if (isDropPin && !pendingImageUrl) { errEl.textContent = 'Drop Pin requires an image'; return; }
 
   const noCorrect = isSlide || isWordCloud || isDropPin || isPoll || isOpenText;
-  const noTime    = isSlide || isDropPin;
+  const noTime    = isSlide;
 
   const q = {
     text,
@@ -560,7 +560,7 @@ function renderPreview() {
 
   const noteEl = document.getElementById('preview-note');
   const timeStr = q.timeLimit ? `${q.timeLimit}s limit` : '';
-  const specificNotes = { slide: 'No timer · Host clicks Continue', wordcloud: timeStr, droppin: 'Requires image · No timer', opentext: timeStr, poll: `No scoring · ${timeStr}` };
+  const specificNotes = { slide: 'No timer · Host clicks Continue', wordcloud: timeStr, droppin: `Requires image · ${timeStr}`, opentext: timeStr, poll: `No scoring · ${timeStr}` };
   noteEl.textContent = specificNotes[type] ?? timeStr;
 
   document.getElementById('preview-prev-btn').disabled = previewIndex === 0;

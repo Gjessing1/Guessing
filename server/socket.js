@@ -62,14 +62,14 @@ function advanceRoom(io, room, pin) {
     totalQuestions: room.quiz.questions.length,
     text: q.text,
     options: q.options || [],
-    timeLimit: q.timeLimit || 0,
+    timeLimit: q.timeLimit || (q.type === 'droppin' ? 30 : 0),
     image: q.image || null,
     type: q.type || 'multiple',
     showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
   };
 
   if (isLightning) {
-    // Show a 2-second intro flash; questionStartTime is set AFTER so intro
+    // Show a 3.5-second intro flash; questionStartTime is set AFTER so intro
     // doesn't consume scoring time.
     room.questionStartTime = Date.now() + 99999; // sentinel while intro plays
     io.to(pin).emit('LIGHTNING_INTRO');
@@ -77,7 +77,7 @@ function advanceRoom(io, room, pin) {
       if (!rm.getRoom(pin)) return; // room may have been cleaned up
       room.questionStartTime = Date.now();
       io.to(pin).emit('QUESTION_DATA', questionData);
-    }, 2000);
+    }, 3500);
   } else {
     room.questionStartTime = Date.now();
     io.to(pin).emit('QUESTION_DATA', questionData);

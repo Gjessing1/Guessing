@@ -252,7 +252,7 @@ socket.on('LIGHTNING_INTRO', () => {
   AudioManager.stop('tick-tock');
   AudioManager.play('game-start');
   showScreen('lightning');
-  // QUESTION_DATA arrives from server after 2 s
+  // QUESTION_DATA arrives from server after 3.5 s
 });
 
 // ── Question ──────────────────────────────────────────────────────────────────
