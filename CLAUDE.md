@@ -121,4 +121,26 @@
 - [x] Lightning Round (sometimes tied to fast-paced game modes like “Double Points” or rapid-fire questions) is basically a segment where speed matters even more than usual. This is not correctly implemented, fix it and also fix the explanation modal in admin editor. Also make a screen flash with lightning round 1,5x or 2x speed points amplifier before the question, this makes sure everyone understands the mechanics.
 - [x] Light mode and dark mode if not already implemented (selectable only by host)
 - [x] Make sure drop the pin has required a image for the question when editing the quiz, only the image will show for the players and they can only place the pin within the image, small confirmation box beneath image to make sure they dont accidently place and submit.
+- [x] Drop-pin timer fix — questions were saved with timeLimit 0, causing host to fire results after 1 s. Fixed admin editor to show/save a real timer (default 30 s) and added server fallback for existing quizzes.
+- [x] Lightning intro extended from 2 s to 3.5 s.
+
+## Phase 15: New question types + polish
+
+### Proposed new question type: Estimation
+- [ ] **Estimation question** — host sets a numeric target (e.g. year, population, distance). Players drag a slider or type a number. Closest answer wins. Scoring by proximity (full points for exact, decaying to 0 at a configurable ±threshold). Great for data/history/geography trivia. Requires: new type `estimation` in admin editor, slider UI on player screen, proximity-scoring in roomManager.
+
+### Proposed new question type: Image Answer
+- [ ] **Image options question** — Instead of 4 text answers, each option is an image (uploaded in admin). Player taps the correct image. Same scoring as multiple-choice. Requires: 4 image upload slots in admin, image grid on player screen.
+
+### Polish & engagement
+- [ ] **Streak bonus** — 3+ consecutive correct answers awards a small bonus (e.g. +100 pts, shown with a 🔥 banner). Makes staying focused the whole game rewarding.
+- [ ] **"Fastest correct" callout** — On the results screen, show which player answered correctly first (name + emoji). Already have answerTimes on the server, just need to surface it.
+- [ ] **Final podium score breakdown** — On the podium screen, players can see their own question-by-question history (✅/❌ per question, total score). Gives a sense of where they gained/lost points.
+- [ ] **Admin: duplicate question** — One-click copy of an existing question card. Useful for creating similar questions without re-filling every field.
+- [ ] **Admin: drag-to-reorder questions** — Replace the current up/down buttons with drag handles (HTML5 drag-and-drop or a touch-friendly library).
+
+### Known issues to fix
+- [ ] **Drop-pin coordinate mismatch** — Player dp-area is `flex-1` (variable height), host results uses `aspect-ratio: 16/9`. With `object-cover` both crop the image differently, so pins appear in slightly wrong positions on the host results map. Fix: constrain player dp-area to the same 16:9 ratio (with letter-boxing), so both sides treat (x, y) identically.
+- [ ] **Reaction spam** — No rate-limiting on `REACTION_SEND`. A player can flood the host screen. Add a simple per-player debounce (e.g. max 1 reaction per 500 ms server-side).
+- [ ] **Reconnect during results phase** — If a player reconnects while the host is on a results screen (`questionPhase === 'results'`), they get `GAME_STATE_CHANGE { status: 'playing' }` but no content — blank screen until the next question. Send a "waiting for next question" placeholder or the current results data.
 
