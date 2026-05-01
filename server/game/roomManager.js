@@ -17,11 +17,13 @@ function createRoom() {
     tokenIndex: new Map(),     // token → socketId  (for reconnect)
     status: 'lobby',
     teamsEnabled: false,
+    teamNames: { red: 'Red', blue: 'Blue', yellow: 'Yellow', green: 'Green' },
     quiz: null,
     currentQuestionIndex: -1,
     questionPhase: null,       // 'question' | 'results' | null
     currentAnswers: new Map(), // socketId → answerIndex / word / coords
     answerTimes: new Map(),    // socketId → seconds elapsed when answered
+    teamsTriggered: new Set(), // teams that have already triggered the timer cap this question
     questionStartTime: null,
     questionHistory: [],       // [{ quizIndex, answerCounts, correctIndex, avgAnswerTime }]
     createdAt: Date.now(),
@@ -114,6 +116,14 @@ function getAnswerCounts(room) {
   return counts;
 }
 
+function getTeamCount(room, team) {
+  let count = 0;
+  for (const player of room.players.values()) {
+    if (player.team === team) count++;
+  }
+  return count;
+}
+
 function getWordCounts(room) {
   const counts = {};
   for (const answer of room.currentAnswers.values()) {
@@ -194,6 +204,7 @@ module.exports = {
   recordAnswer,
   getAnswerCounts,
   getAnswerCount,
+  getTeamCount,
   getWordCounts,
   getTextAnswers,
   getPinCoords,

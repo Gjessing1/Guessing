@@ -13,9 +13,12 @@ let currentQuestionNumber = 0;
 let totalQuestions = 0;
 let isLastQuestion = false;
 let soundMode = localStorage.getItem('soundMode') || 'default';
+let timerCapOverride = Infinity; // set by TIMER_CAP when first team completes
+let currentTeamNames = { red: 'Red', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
 
-const TEAM_COLORS = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
-const TEAM_LABELS = { red: '🔴 Red', blue: '🔵 Blue', yellow: '🟡 Yellow', green: '🟢 Green' };
+const TEAM_COLORS  = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
+const TEAM_EMOJIS  = { red: '🔴', blue: '🔵', yellow: '🟡', green: '🟢' };
+const MAX_TEAM_SIZE = 4;
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 
@@ -174,6 +177,40 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
     `;
     grid.appendChild(card);
   });
+
+  // Team overview
+  const teamOverview = document.getElementById('team-overview');
+  const teamOverviewList = document.getElementById('team-overview-list');
+  const byTeam = {};
+  players.forEach(p => {
+    if (!p.team) return;
+    (byTeam[p.team] = byTeam[p.team] || []).push(p);
+  });
+  const teamKeys = Object.keys(byTeam);
+  if (teamKeys.length > 0) {
+    teamOverview.classList.remove('hidden');
+    teamOverviewList.innerHTML = '';
+    teamKeys.forEach(team => {
+      const members = byTeam[team];
+      const name = currentTeamNames[team] || team;
+      const avatars = members.map(p =>
+        `<div class="w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0"
+              style="background-color:${p.color}">${p.emoji}</div>`
+      ).join('');
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2';
+      row.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${TEAM_COLORS[team]}"></span>
+        <span class="text-sm font-semibold text-gray-200 truncate" style="min-width:0;max-width:5rem">${escapeHtml(name)}</span>
+        <div class="flex gap-1 flex-wrap">${avatars}</div>
+        <span class="text-gray-500 text-xs ml-auto flex-shrink-0">${members.length}/${MAX_TEAM_SIZE}</span>
+      `;
+      teamOverviewList.appendChild(row);
+    });
+  } else {
+    teamOverview.classList.add('hidden');
+  }
+
   updateStartBtn();
 });
 
@@ -253,6 +290,7 @@ socket.on('ANSWER_COUNT', ({ count, total }) => {
 function startTimer(seconds) {
   clearInterval(timerInterval);
   timerTotal = seconds;
+  timerCapOverride = Infinity; // reset cap for each new question
   let remaining = seconds;
   const circle = document.getElementById('timer-circle');
   const number = document.getElementById('timer-number');
@@ -267,6 +305,7 @@ function startTimer(seconds) {
   tick();
   timerInterval = setInterval(() => {
     remaining--;
+    remaining = Math.min(remaining, timerCapOverride);
     tick();
     if (remaining === (soundMode === 'party' ? 10 : 5)) AudioManager.play('tick-tock');
     if (remaining <= 0) {
@@ -275,6 +314,21 @@ function startTimer(seconds) {
     }
   }, 1000);
 }
+
+socket.on('TIMER_CAP', ({ seconds, teamName }) => {
+  timerCapOverride = Math.min(timerCapOverride, seconds);
+  // Flash a brief banner on the question screen
+  const label = document.getElementById('q-label');
+  if (label) {
+    const orig = label.textContent;
+    label.textContent = `${TEAM_EMOJIS[Object.keys(TEAM_COLORS).find(k => currentTeamNames[k] === teamName)] || ''} ${teamName} finished! ${seconds}s left`;
+    setTimeout(() => { label.textContent = orig; }, 2500);
+  }
+});
+
+socket.on('TEAM_NAMES_UPDATE', ({ teamNames }) => {
+  currentTeamNames = { ...currentTeamNames, ...teamNames };
+});
 
 // ── Results ───────────────────────────────────────────────────────────────────
 
@@ -470,7 +524,8 @@ socket.on('REACTION_BROADCAST', ({ emoji, color }) => {
   setTimeout(() => el.remove(), 2000);
 });
 
-socket.on('FINAL_PODIUM', ({ players }) => {
+socket.on('FINAL_PODIUM', ({ players, teamNames }) => {
+  if (teamNames) currentTeamNames = { ...currentTeamNames, ...teamNames };
   clearInterval(timerInterval);
   AudioManager.play('applause');
 
@@ -542,7 +597,7 @@ socket.on('FINAL_PODIUM', ({ players }) => {
       row.style.cssText = `background-color:${TEAM_COLORS[team]}33;animation-delay:${900 + i * 100}ms`;
       row.innerHTML = `
         <span class="text-xl w-8 text-center">${teamMedals[i] || `${i + 1}.`}</span>
-        <span class="flex-1 font-bold text-lg">${TEAM_LABELS[team] || team}</span>
+        <span class="flex-1 font-bold text-lg">${TEAM_EMOJIS[team] || ''} ${escapeHtml(currentTeamNames[team] || team)}</span>
         <div class="text-right leading-tight">
           <p class="font-black text-xl">${avg.toLocaleString()} pts</p>
           <p class="text-gray-400 text-xs">avg · ${count} player${count !== 1 ? 's' : ''}</p>

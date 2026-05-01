@@ -19,7 +19,7 @@ function advanceRoom(io, room, pin) {
 
   if (room.currentQuestionIndex >= room.quiz.questions.length) {
     const players = rm.getLeaderboard(room);
-    io.to(pin).emit('FINAL_PODIUM', { players });
+    io.to(pin).emit('FINAL_PODIUM', { players, teamNames: room.teamNames });
     room.status = 'ended';
 
     resultStore.save({
@@ -54,6 +54,7 @@ function advanceRoom(io, room, pin) {
   room.questionPhase = isSlide ? 'slide' : 'question';
   room.currentAnswers = new Map();
   room.answerTimes = new Map();
+  room.teamsTriggered = new Set();
   room.questionStartTime = Date.now();
 
   io.to(pin).emit('QUESTION_DATA', {
@@ -91,8 +92,13 @@ function registerSocketHandlers(io) {
 
       const cleanNick = sanitize(nickname);
       if (!cleanNick) return socket.emit('ERROR', { message: 'Invalid nickname' });
-      // Only accept a team choice if the host has enabled team mode
-      const cleanTeam = room.teamsEnabled && ['red', 'blue', 'yellow', 'green'].includes(team) ? team : null;
+      // Only accept a team choice if the host has enabled team mode and team is not full
+      const MAX_TEAM = 4;
+      const wantedTeam = room.teamsEnabled && ['red', 'blue', 'yellow', 'green'].includes(team) ? team : null;
+      const existingTeam = room.players.get(socket.id)?.team ?? null;
+      const teamFull = wantedTeam && wantedTeam !== existingTeam && rm.getTeamCount(room, wantedTeam) >= MAX_TEAM;
+      const cleanTeam = teamFull ? existingTeam : wantedTeam;
+      if (teamFull) socket.emit('TEAM_FULL', { team: wantedTeam, name: room.teamNames[wantedTeam] || wantedTeam });
 
       // Mid-game reconnect via session token
       if (token && room.status === 'playing') {
@@ -132,6 +138,18 @@ function registerSocketHandlers(io) {
       socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
     });
 
+    socket.on('RENAME_TEAM', ({ pin, team, name }) => {
+      const room = rm.getRoom(pin);
+      if (!room || room.status !== 'lobby') return;
+      if (!['red', 'blue', 'yellow', 'green'].includes(team)) return;
+      const player = room.players.get(socket.id);
+      if (!player || player.team !== team) return; // must be on that team
+      const cleanName = String(name || '').trim().slice(0, 20);
+      if (!cleanName) return;
+      room.teamNames[team] = cleanName;
+      io.to(pin).emit('TEAM_NAMES_UPDATE', { teamNames: room.teamNames });
+    });
+
     socket.on('HOST_SETTING', ({ pin, teamsEnabled }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id || room.status !== 'lobby') return;
@@ -143,6 +161,7 @@ function registerSocketHandlers(io) {
         }
         io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(room));
         io.to(pin).emit('LOBBY_UPDATE', { teamsEnabled });
+        if (teamsEnabled) io.to(pin).emit('TEAM_NAMES_UPDATE', { teamNames: room.teamNames });
       }
     });
 
@@ -262,6 +281,25 @@ function registerSocketHandlers(io) {
       const count = rm.getAnswerCount(room);
       if (room.hostSocketId) {
         io.to(room.hostSocketId).emit('ANSWER_COUNT', { count, total: room.players.size });
+      }
+
+      // Team mode: when the first team completes, cap remaining time to 8 s
+      if (room.teamsEnabled) {
+        const playerTeam = room.players.get(socket.id)?.team;
+        if (playerTeam && !room.teamsTriggered.has(playerTeam)) {
+          let allAnswered = true;
+          let teamSize = 0;
+          for (const [sid, p] of room.players.entries()) {
+            if (p.team !== playerTeam) continue;
+            teamSize++;
+            if (!room.currentAnswers.has(sid)) { allAnswered = false; break; }
+          }
+          if (allAnswered && teamSize > 0) {
+            room.teamsTriggered.add(playerTeam);
+            const teamName = room.teamNames[playerTeam] || playerTeam;
+            io.to(pin).emit('TIMER_CAP', { seconds: 8, teamName });
+          }
+        }
       }
     });
 

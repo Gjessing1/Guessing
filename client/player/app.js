@@ -28,6 +28,10 @@ let playerEmoji    = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
 let playerColor    = COLORS[Math.floor(Math.random() * COLORS.length)];
 let playerTeam     = null; // 'red' | 'blue' | 'yellow' | 'green' | null
 let playerAnswer      = null;
+let playerTimerCap    = Infinity; // set by TIMER_CAP when first team completes
+let currentTeamNames  = { red: 'Red', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
+const TEAM_COLORS_P   = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
+const MAX_TEAM_SIZE   = 4;
 let currentOptions    = [];
 let timerInterval     = null;
 let playerScore       = 0;
@@ -70,6 +74,14 @@ document.getElementById('mute-btn').addEventListener('click', () => {
 
 document.getElementById('change-avatar-btn').addEventListener('click', () => {
   showScreen('avatar');
+});
+
+document.getElementById('rename-team-btn').addEventListener('click', () => {
+  if (!playerTeam || !gamePin) return;
+  const current = currentTeamNames[playerTeam] || playerTeam;
+  const newName = prompt(`Rename "${current}" to:`, current);
+  if (!newName || !newName.trim()) return;
+  socket.emit('RENAME_TEAM', { pin: gamePin, team: playerTeam, name: newName.trim() });
 });
 
 document.querySelectorAll('.reaction-btn').forEach(btn => {
@@ -198,15 +210,14 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     lobbyAvatar.style.backgroundColor = playerColor;
     lobbyAvatar.textContent = playerEmoji;
     document.getElementById('lobby-nickname').textContent = playerNickname;
-    const TEAM_COLORS_P = { red: '#ef4444', blue: '#3b82f6', yellow: '#eab308', green: '#22c55e' };
-    const TEAM_LABELS_P = { red: '🔴 Red', blue: '🔵 Blue', yellow: '🟡 Yellow', green: '🟢 Green' };
+    const teamWrapper = document.getElementById('lobby-team-wrapper');
     const teamEl = document.getElementById('lobby-team');
     if (playerTeam) {
-      teamEl.textContent = TEAM_LABELS_P[playerTeam];
+      teamEl.textContent = currentTeamNames[playerTeam] || playerTeam;
       teamEl.style.color = TEAM_COLORS_P[playerTeam];
-      teamEl.classList.remove('hidden');
+      teamWrapper.classList.remove('hidden');
     } else {
-      teamEl.classList.add('hidden');
+      teamWrapper.classList.add('hidden');
     }
   }
   if (status === 'playing') {
@@ -222,10 +233,53 @@ socket.on('LOBBY_UPDATE', ({ teamsEnabled: enabled }) => {
   applyTeamsEnabled(enabled);
 });
 
+socket.on('TIMER_CAP', ({ seconds }) => {
+  playerTimerCap = Math.min(playerTimerCap, seconds);
+});
+
+socket.on('TEAM_NAMES_UPDATE', ({ teamNames }) => {
+  currentTeamNames = { ...currentTeamNames, ...teamNames };
+  // Update team picker labels
+  document.querySelectorAll('[data-team]').forEach(wrapper => {
+    const t = wrapper.dataset.team;
+    const lbl = wrapper.querySelector('.team-label');
+    if (lbl && currentTeamNames[t]) lbl.textContent = currentTeamNames[t];
+  });
+  // Update lobby team badge
+  if (playerTeam && currentTeamNames[playerTeam]) {
+    document.getElementById('lobby-team').textContent =
+      `${currentTeamNames[playerTeam]}`;
+  }
+});
+
+socket.on('TEAM_FULL', ({ name }) => {
+  showError(document.getElementById('avatar-error'), `"${name}" is full (${MAX_TEAM_SIZE}/4) — pick another`);
+  playerTeam = null;
+  document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('border-white'));
+});
+
 socket.on('PLAYER_LIST_UPDATE', (players) => {
   const count = players.length;
   document.getElementById('player-count').textContent =
     `${count} player${count !== 1 ? 's' : ''} in the lobby`;
+
+  // Update team button availability (cap at MAX_TEAM_SIZE)
+  if (teamsEnabled) {
+    const teamCounts = {};
+    players.forEach(p => { if (p.team) teamCounts[p.team] = (teamCounts[p.team] || 0) + 1; });
+    document.querySelectorAll('[data-team]').forEach(wrapper => {
+      const t = wrapper.dataset.team;
+      const cnt = teamCounts[t] || 0;
+      const countEl = wrapper.querySelector('.team-count');
+      if (countEl) countEl.textContent = cnt > 0 ? `${cnt}/${MAX_TEAM_SIZE}` : '';
+      const btn = wrapper.querySelector('.team-btn');
+      if (btn) {
+        const full = cnt >= MAX_TEAM_SIZE && t !== playerTeam;
+        btn.disabled = full;
+        btn.style.opacity = full ? '0.3' : '1';
+      }
+    });
+  }
 });
 
 socket.on('ANSWER_RESULT', ({ correct, scoreDelta, totalScore }) => {
@@ -241,6 +295,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   pendingCoords     = null;
   currentOptions    = options;
   lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
+  playerTimerCap    = Infinity; // reset cap for each question
 
   // Slide: just show content, no timer or answers
   if (type === 'slide') {
@@ -363,6 +418,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
 
   timerInterval = setInterval(() => {
     remaining--;
+    remaining = Math.min(remaining, playerTimerCap);
     document.getElementById('q-timer-display').textContent = remaining;
     const pct = Math.max(0, (remaining / timeLimit) * 100);
     bar.style.transition = 'width 1s linear';

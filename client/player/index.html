@@ -62,11 +62,27 @@
     <div id="color-grid" class="flex gap-4 flex-wrap mb-6"></div>
     <div id="team-section" class="hidden w-full max-w-sm mb-8">
       <p class="text-gray-400 text-sm mb-3">Pick your team</p>
-      <div id="team-grid" class="flex gap-3">
-        <button data-team="red"    class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#ef4444" title="Red"></button>
-        <button data-team="blue"   class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#3b82f6" title="Blue"></button>
-        <button data-team="yellow" class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#eab308" title="Yellow"></button>
-        <button data-team="green"  class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#22c55e" title="Green"></button>
+      <div id="team-grid" class="flex gap-5 justify-center">
+        <div class="flex flex-col items-center gap-1" data-team="red">
+          <button class="team-btn w-13 h-13 w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#ef4444"></button>
+          <span class="team-label text-xs text-gray-300 text-center leading-tight max-w-[3.5rem] truncate">Red</span>
+          <span class="team-count text-xs text-gray-600"></span>
+        </div>
+        <div class="flex flex-col items-center gap-1" data-team="blue">
+          <button class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#3b82f6"></button>
+          <span class="team-label text-xs text-gray-300 text-center leading-tight max-w-[3.5rem] truncate">Blue</span>
+          <span class="team-count text-xs text-gray-600"></span>
+        </div>
+        <div class="flex flex-col items-center gap-1" data-team="yellow">
+          <button class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#eab308"></button>
+          <span class="team-label text-xs text-gray-300 text-center leading-tight max-w-[3.5rem] truncate">Yellow</span>
+          <span class="team-count text-xs text-gray-600"></span>
+        </div>
+        <div class="flex flex-col items-center gap-1" data-team="green">
+          <button class="team-btn w-12 h-12 rounded-full border-4 border-transparent transition-transform active:scale-95" style="background:#22c55e"></button>
+          <span class="team-label text-xs text-gray-300 text-center leading-tight max-w-[3.5rem] truncate">Green</span>
+          <span class="team-count text-xs text-gray-600"></span>
+        </div>
       </div>
     </div>
     <p id="avatar-error" class="text-red-400 text-sm mb-4 h-5"></p>
@@ -79,7 +95,10 @@
   <div id="screen-lobby" class="hidden min-h-screen flex flex-col items-center justify-center px-safe pt-safe pb-safe">
     <div id="lobby-avatar" class="w-28 h-28 rounded-full flex items-center justify-center text-6xl mb-5 shadow-lg"></div>
     <p id="lobby-nickname" class="text-2xl font-bold mb-1"></p>
-    <p id="lobby-team" class="hidden text-sm font-bold mb-1"></p>
+    <div id="lobby-team-wrapper" class="hidden mb-2 flex items-center gap-2">
+      <p id="lobby-team" class="text-sm font-bold"></p>
+      <button id="rename-team-btn" class="text-gray-500 hover:text-white transition-colors text-sm" title="Rename team">✏️</button>
+    </div>
     <button id="change-avatar-btn" class="text-indigo-400 text-sm mb-6 underline underline-offset-2">Change name / avatar</button>
     <p id="player-count" class="text-gray-500 text-sm mb-10">Connecting…</p>
     <div class="flex items-center gap-2 text-gray-400">
