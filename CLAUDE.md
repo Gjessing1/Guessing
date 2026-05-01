@@ -92,8 +92,8 @@
 
 ## Development Rules
 - **Task Protocol:**
-  - One task at a time.
-  - Ask for approval before editing `CLAUDE.md`.
+  - One phase at a time.
+  - Ask for approval before editing `CLAUDE.md` unless you are updating the roadmap progress which you can always freely edit as you finish tasks.
   - Provide a **Post-Task Summary** (Changes, Unchanged, Risks) after every task.
   - Wait for user confirmation before proceeding.
 - **Code Style:**
@@ -102,54 +102,16 @@
 
 ## Roadmap
 
-### Phase 5: Admin Polish ✅
-- [x] Question reordering (↑↓ buttons in the editor)
-- [x] Duplicate quiz button
-- [x] Question count and total time estimate shown in quiz list
+### Phase 12: Polish & Power Features ✅
+- [x] Host can skip / end question early (override timer with "Skip" button alongside "Show Results")
+- [x] Player nickname sanitisation — strip HTML so a crafted nickname can't inject markup into host screen
+- [x] Lobby music auto-stops when host clicks Start (currently there is a brief overlap)
+- [x] Share-game link in host lobby — one-tap copy of the join URL for pasting into chat
+- [x] Delete game result from the Results detail view (currently only deletable from list)
+- [x] Open-text answer type: players type a short answer, host sees all responses as a list (no auto-grading)
 
-### Phase 6: Question Types ✅
-- [x] True/False question type (2 options, pre-filled True/False)
-- [x] Lightning round: flat 500 pts, no time bonus, ⚡ shown on question
-
-### Phase 7: Reliability ✅
-- [x] Player reconnect on socket drop (session token in sessionStorage)
-- [x] Host disconnect → 30s grace period before ending game
-- [x] Room cleanup: rooms pruned after 3 hours idle
-
-### Phase 8: UX Improvements ✅
-- [x] Player default layout: colored answer boxes fill the screen, no question text
-- [x] Host lobby toggle "Show question text on player screens" (default off)
-- [x] Slide question type (🖼): title + optional image, no answers, host clicks Continue
-- [x] Host view mobile-responsive (stacks vertically on small screens)
-- [x] Admin list and editor mobile-responsive (buttons wrap, compact headers)
-
-### Phase 9: UI improvements ✅
-- [x] Removed "Select quiz" label from host lobby
-- [x] Centered "Show question text on player screens" toggle
-- [x] QR code now points to `/join/:pin` (server redirect) — reliable across all browsers and QR scanners
-
-### Phase 10: Analytics ✅
-- [x] Game results saved to `data/results.json` after every completed game
-- [x] Results tab in admin: history list with date, quiz name, player count
-- [x] Per-game detail: final standings + per-question correct % bar chart
-- [x] Export game result as CSV (standings + question stats, Excel-compatible)
-
-### Phase 11: General improvements ✅
-- [x] Player view: safe-area padding + dvh height so content never hides behind address bar, notch, or home indicator
-- [x] Admin editor: "+ Add Question" moved to top; Export JSON + Save wrap to a second row on mobile so they're always on-screen; modal padding tightened on small screens
-- [x] All uploaded images converted to JPEG via sharp (supports HEIC, AVIF, WebP, BMP, TIFF, SVG, HEIF); EXIF rotation auto-corrected; upload limit raised to 10 MB raw
-- [x] Quiz list sortable by Newest / Oldest / Last played / A–Z (default: Newest); preference persisted in localStorage; last-played date shown on each card
-- [x] Canvas confetti rains on final podium (host + player); top-3 players slide in with staggered animation on host screen (2nd → 1st → 3rd podium-block layout)
-- [x] Poll question type (📊): multiple choice, no correct answer, all bars full opacity, player sees "Vote counted!"; Word Cloud (☁️): players type a word, host sees live tag cloud sized by frequency; Drop Pin (📍): players tap an image to place a pin, host sees all emoji pins overlaid on image
-
-### Phase 12: Polish & Power Features
-- [ ] Host can skip / end question early (override timer with "Skip" button alongside "Show Results")
-- [ ] Player nickname sanitisation — strip HTML so a crafted nickname can't inject markup into host screen
+### Phase 13: Power Features
 - [ ] Team mode — players choose a team colour at avatar screen; scoring aggregated per team on leaderboard
 - [ ] Question time-per-question stats in game results (average answer time, not just correct %)
 - [ ] Admin: preview a quiz as host before going live (read-only dry run)
 - [ ] Sound effects pack toggle — host can switch between Default, Silent, and Party modes
-- [ ] Lobby music auto-stops when host clicks Start (currently there is a brief overlap)
-- [ ] Share-game link in host lobby — one-tap copy of the join URL for pasting into chat
-- [ ] Delete game result from the Results detail view (currently only deletable from list)
-- [ ] Open-text answer type: players type a short answer, host sees all responses as a list (no auto-grading)
