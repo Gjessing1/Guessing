@@ -1,10 +1,21 @@
 const socket = io();
 
-// Persist session token for mid-game reconnect
-let sessionToken = sessionStorage.getItem('playerToken');
+// Persist session token across browser close/kill (mobile) — use localStorage
+let sessionToken = localStorage.getItem('playerToken');
 if (!sessionToken) {
   sessionToken = crypto.randomUUID();
-  sessionStorage.setItem('playerToken', sessionToken);
+  localStorage.setItem('playerToken', sessionToken);
+}
+
+function saveSession() {
+  if (!gamePin || !playerNickname) return;
+  localStorage.setItem('guessing_session', JSON.stringify({
+    pin: gamePin, nickname: playerNickname,
+    emoji: playerEmoji, color: playerColor, team: playerTeam,
+  }));
+}
+function clearSession() {
+  localStorage.removeItem('guessing_session');
 }
 
 AudioManager.load('submit', '/assets/music/freesound_community-success-1-6297.mp3');
@@ -56,12 +67,47 @@ const screens = {
 };
 
 const REACTION_SCREENS = new Set(['lobby', 'answered', 'result']);
+const reconnectOverlay = document.getElementById('reconnect-overlay');
 
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
   screens[name].classList.remove('hidden');
   document.getElementById('reaction-bar').classList.toggle('hidden', !REACTION_SCREENS.has(name));
 }
+
+// Restore saved session so auto-rejoin works after page close/refresh
+(function () {
+  const raw = localStorage.getItem('guessing_session');
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (s.pin && s.nickname) {
+      gamePin        = s.pin;
+      playerNickname = s.nickname;
+      playerEmoji    = s.emoji  || playerEmoji;
+      playerColor    = s.color  || playerColor;
+      playerTeam     = s.team   || null;
+      reconnectOverlay.classList.remove('hidden'); // show immediately before socket connects
+    }
+  } catch {}
+})();
+
+// Auto-rejoin when socket (re)connects — covers both brief blips and page refreshes
+// Keep the overlay visible until the server responds (game event handlers hide it)
+socket.on('connect', () => {
+  if (gamePin && playerNickname) {
+    socket.emit('ROOM_JOIN', {
+      pin: gamePin, nickname: playerNickname,
+      emoji: playerEmoji, color: playerColor,
+      token: sessionToken, team: playerTeam,
+    });
+  }
+});
+
+// Show reconnecting overlay on any drop while in a game
+socket.on('disconnect', () => {
+  if (gamePin) reconnectOverlay.classList.remove('hidden');
+});
 
 function showError(el, msg) {
   el.textContent = msg;
@@ -197,12 +243,14 @@ function submitAvatar() {
   if (!nickname) return showError(avatarError, 'Enter a nickname');
   if (nickname.length > 20) return showError(avatarError, 'Max 20 characters');
   playerNickname = nickname;
+  saveSession();
   socket.emit('ROOM_JOIN', { pin: gamePin, nickname: playerNickname, emoji: playerEmoji, color: playerColor, token: sessionToken, team: playerTeam });
 }
 
 // ── Socket: state transitions ─────────────────────────────────────────────────
 
 socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
+  reconnectOverlay.classList.add('hidden');
   if (status === 'lobby') {
     showScreen('lobby');
     const lobbyAvatar = document.getElementById('lobby-avatar');
@@ -223,6 +271,9 @@ socket.on('GAME_STATE_CHANGE', ({ status, reason }) => {
     showScreen('ready');
   }
   if (status === 'ended') {
+    clearSession();
+    gamePin = null;
+    playerNickname = '';
     showScreen('pin');
     showError(pinError, reason === 'host_disconnected' ? 'Host disconnected' : 'Game ended');
   }
@@ -233,6 +284,7 @@ socket.on('LOBBY_UPDATE', ({ teamsEnabled: enabled }) => {
 });
 
 socket.on('RECONNECT_WAITING', () => {
+  reconnectOverlay.classList.add('hidden');
   clearInterval(timerInterval);
   showScreen('answered');
 });
@@ -310,6 +362,7 @@ socket.on('LIGHTNING_INTRO', () => {
 });
 
 socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
+  reconnectOverlay.classList.add('hidden');
   clearInterval(timerInterval);
   playerAnswer      = null;
   pendingCoords     = null;
@@ -597,6 +650,8 @@ socket.on('OPENTEXT_RESULTS', () => {
 });
 
 socket.on('FINAL_PODIUM', ({ players }) => {
+  reconnectOverlay.classList.add('hidden');
+  clearSession();
   clearInterval(timerInterval);
   const rank = players.findIndex(p => p.nickname === playerNickname) + 1;
   const me   = players.find(p => p.nickname === playerNickname);
@@ -650,6 +705,16 @@ function launchConfetti() {
 }
 
 socket.on('ERROR', ({ message }) => {
+  // Reconnect failed (room expired / game full) — clear session and go to PIN entry
+  if (!reconnectOverlay.classList.contains('hidden')) {
+    reconnectOverlay.classList.add('hidden');
+    clearSession();
+    gamePin = null;
+    playerNickname = '';
+    showScreen('pin');
+    showError(pinError, 'Session expired — please rejoin');
+    return;
+  }
   if (!screens.pin.classList.contains('hidden'))    showError(pinError, message);
   if (!screens.avatar.classList.contains('hidden')) showError(document.getElementById('avatar-error'), message);
 });

@@ -7,6 +7,8 @@ setInterval(() => rm.pruneStaleRooms(), 30 * 60 * 1000);
 
 // pin → timeoutId for host disconnect grace period
 const hostGraceTimers = new Map();
+// socketId → timeoutId for lobby player disconnect grace period
+const playerGraceTimers = new Map();
 
 function sanitize(str) {
   return String(str || '').replace(/<[^>]*>/g, '').trim().slice(0, 20);
@@ -99,6 +101,27 @@ function registerSocketHandlers(io) {
       room.hostSocketId = socket.id;
       socket.join(pin);
       socket.emit('GAME_STATE_CHANGE', { status: room.status, pin });
+
+      // On reconnect during a question: replay question data so host can control the game
+      if (room.status === 'playing' && room.questionPhase === 'question') {
+        const q = room.quiz?.questions?.[room.currentQuestionIndex];
+        if (q) {
+          const elapsed = Math.floor((Date.now() - room.questionStartTime) / 1000);
+          socket.emit('QUESTION_DATA', {
+            questionNumber: room.currentQuestionIndex + 1,
+            totalQuestions: room.quiz.questions.length,
+            text: q.text,
+            options: q.options || [],
+            timeLimit: Math.max(1, (q.timeLimit || 30) - elapsed),
+            image: q.image || null,
+            type: q.type || 'multiple',
+          });
+          socket.emit('ANSWER_COUNT', {
+            count: rm.getAnswerCount(room),
+            total: room.players.size,
+          });
+        }
+      }
     });
 
     socket.on('ROOM_JOIN', ({ pin, nickname, emoji, color, token, team }) => {
@@ -115,27 +138,38 @@ function registerSocketHandlers(io) {
       const cleanTeam = teamFull ? existingTeam : wantedTeam;
       if (teamFull) socket.emit('TEAM_FULL', { team: wantedTeam, name: room.teamNames[wantedTeam] || wantedTeam });
 
-      // Mid-game reconnect via session token
-      if (token && room.status === 'playing') {
+      // Token-based reconnect — works in both lobby and playing phases
+      if (token) {
         const found = rm.findPlayerByToken(room, token);
         if (found) {
+          // Cancel any pending lobby grace-period removal for the old socket
+          if (playerGraceTimers.has(found.socketId)) {
+            clearTimeout(playerGraceTimers.get(found.socketId));
+            playerGraceTimers.delete(found.socketId);
+          }
           rm.reconnectPlayer(room, found.socketId, socket.id, cleanNick, emoji, color);
           socket.join(pin);
-          socket.emit('GAME_STATE_CHANGE', { status: 'playing' });
-          if (room.questionPhase === 'question') {
-            const q = room.quiz.questions[room.currentQuestionIndex];
-            const elapsed = Math.floor((Date.now() - room.questionStartTime) / 1000);
-            socket.emit('QUESTION_DATA', {
-              questionNumber: room.currentQuestionIndex + 1,
-              totalQuestions: room.quiz.questions.length,
-              text: q.text,
-              options: q.options,
-              timeLimit: Math.max(1, q.timeLimit - elapsed),
-              image: q.image || null,
-              type: q.type || 'multiple',
-            });
-          } else if (room.questionPhase === 'results') {
-            socket.emit('RECONNECT_WAITING');
+          if (room.status === 'lobby') {
+            socket.emit('GAME_STATE_CHANGE', { status: 'lobby' });
+            io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(room));
+          } else {
+            socket.emit('GAME_STATE_CHANGE', { status: 'playing' });
+            if (room.questionPhase === 'question') {
+              const q = room.quiz.questions[room.currentQuestionIndex];
+              const elapsed = Math.floor((Date.now() - room.questionStartTime) / 1000);
+              socket.emit('QUESTION_DATA', {
+                questionNumber: room.currentQuestionIndex + 1,
+                totalQuestions: room.quiz.questions.length,
+                text: q.text,
+                options: q.options,
+                timeLimit: Math.max(1, q.timeLimit - elapsed),
+                image: q.image || null,
+                type: q.type || 'multiple',
+                showQuestion: room.showQuestionOnPlayer === true,
+              });
+            } else if (room.questionPhase === 'results') {
+              socket.emit('RECONNECT_WAITING');
+            }
           }
           return;
         }
@@ -372,8 +406,18 @@ function registerSocketHandlers(io) {
       const playerRoom = rm.getRoomByPlayerSocket(socket.id);
       if (playerRoom) {
         if (playerRoom.status === 'lobby') {
-          rm.removePlayer(socket.id);
-          io.to(playerRoom.pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(playerRoom));
+          // Short grace period so brief network blips don't drop the player from the lobby
+          const sid = socket.id;
+          const { pin } = playerRoom;
+          const tid = setTimeout(() => {
+            playerGraceTimers.delete(sid);
+            const r = rm.getRoom(pin);
+            if (r && r.status === 'lobby' && r.players.has(sid)) {
+              rm.removePlayer(sid);
+              io.to(pin).emit('PLAYER_LIST_UPDATE', rm.getPlayerList(r));
+            }
+          }, 8000);
+          playerGraceTimers.set(sid, tid);
         }
         // Mid-game: keep player data so they can reconnect
       }

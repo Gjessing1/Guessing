@@ -22,6 +22,13 @@
 </head>
 <body class="bg-gray-900 text-white">
 
+  <!-- Reconnect overlay: shown on socket drop while in a game -->
+  <div id="reconnect-overlay" class="hidden fixed inset-0 z-50 bg-gray-900/95 flex flex-col items-center justify-center gap-4">
+    <div class="text-5xl animate-bounce">📡</div>
+    <p class="text-xl font-bold text-white">Reconnecting…</p>
+    <p class="text-gray-400 text-sm">Hang tight, restoring your session</p>
+  </div>
+
   <!-- Fixed mute button — inset-top accounts for notch / status bar -->
   <button id="mute-btn" style="top: max(0.75rem, env(safe-area-inset-top)); right: max(0.75rem, env(safe-area-inset-right));" class="fixed z-50 bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-lg opacity-60 hover:opacity-100 transition-opacity">🔊</button>
 

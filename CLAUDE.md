@@ -92,7 +92,7 @@
 
 ## Development Rules
 - **Task Protocol:**
-  - One phase at a time.
+  - One phase at a time, quality over quantity of tasks.
   - Ask for approval before editing `CLAUDE.md` unless you are updating the roadmap progress which you can always freely edit as you finish tasks.
   - Provide a **Post-Task Summary** (Changes, Unchanged, Risks) after every task.
   - Wait for user confirmation before proceeding.
@@ -126,21 +126,24 @@
 
 ## Phase 15: New question types + polish
 
+## Phase 15 part 1
+### Known issues to fix
+- [x] **Drop-pin coordinate mismatch** — Player dp-area is `flex-1` (variable height), host results uses `aspect-ratio: 16/9`. With `object-cover` both crop the image differently, so pins appear in slightly wrong positions on the host results map. Fix: constrain player dp-area to the same 16:9 ratio (with letter-boxing), so both sides treat (x, y) identically.
+- [x] **Reconnect during results phase** — If a player reconnects while the host is on a results screen (`questionPhase === 'results'`), they get `GAME_STATE_CHANGE { status: 'playing' }` but no content — blank screen until the next question. Send a "waiting for next question" placeholder or the current results data.
+
+## Phase 15 part 2
+### Polish & engagement
+- [x] **Streak bonus** — 3+ consecutive correct answers awards a small bonus (e.g. +100 pts, shown with a 🔥 banner). Makes staying focused the whole game rewarding.
+- [x] **"Fastest correct" callout** — On the results screen, show which player answered correctly first (name + emoji). Already have answerTimes on the server, just need to surface it.
+- [x] **Admin: duplicate question** — One-click copy of an existing question card. Useful for creating similar questions without re-filling every field.
+- [x] **Admin: drag-to-reorder questions** — Replace the current up/down buttons with drag handles (HTML5 drag-and-drop or a touch-friendly library).
+- [x] **Make the final podium slide shown on host screen feel like a stage**, add an actual podium with animation when shown, showing the avatars for each of the top three places gold, silver, bronze. Keep confetti and sound as it is. If you’re doing teams it should  slightly tint the background to match the winning team color. Think more “award ceremony” than “kids game.” as target audience is adults. Soft shadow under podium blocks
+Slight bounce animation when ranks appear Glow intensity proportional to rank (gold brightest) Clear hierarchy (1st pops instantly)
+
+## Phase 15 part 3
+
 ### Proposed new question type: Estimation
 - [ ] **Estimation question** — host sets a numeric target (e.g. year, population, distance). Players drag a slider or type a number. Closest answer wins. Scoring by proximity (full points for exact, decaying to 0 at a configurable ±threshold). Great for data/history/geography trivia. Requires: new type `estimation` in admin editor, slider UI on player screen, proximity-scoring in roomManager.
 
 ### Proposed new question type: Image Answer
 - [ ] **Image options question** — Instead of 4 text answers, each option is an image (uploaded in admin). Player taps the correct image. Same scoring as multiple-choice. Requires: 4 image upload slots in admin, image grid on player screen.
-
-### Polish & engagement
-- [ ] **Streak bonus** — 3+ consecutive correct answers awards a small bonus (e.g. +100 pts, shown with a 🔥 banner). Makes staying focused the whole game rewarding.
-- [ ] **"Fastest correct" callout** — On the results screen, show which player answered correctly first (name + emoji). Already have answerTimes on the server, just need to surface it.
-- [ ] **Final podium score breakdown** — On the podium screen, players can see their own question-by-question history (✅/❌ per question, total score). Gives a sense of where they gained/lost points.
-- [ ] **Admin: duplicate question** — One-click copy of an existing question card. Useful for creating similar questions without re-filling every field.
-- [ ] **Admin: drag-to-reorder questions** — Replace the current up/down buttons with drag handles (HTML5 drag-and-drop or a touch-friendly library).
-
-### Known issues to fix
-- [ ] **Drop-pin coordinate mismatch** — Player dp-area is `flex-1` (variable height), host results uses `aspect-ratio: 16/9`. With `object-cover` both crop the image differently, so pins appear in slightly wrong positions on the host results map. Fix: constrain player dp-area to the same 16:9 ratio (with letter-boxing), so both sides treat (x, y) identically.
-- [ ] **Reaction spam** — No rate-limiting on `REACTION_SEND`. A player can flood the host screen. Add a simple per-player debounce (e.g. max 1 reaction per 500 ms server-side).
-- [ ] **Reconnect during results phase** — If a player reconnects while the host is on a results screen (`questionPhase === 'results'`), they get `GAME_STATE_CHANGE { status: 'playing' }` but no content — blank screen until the next question. Send a "waiting for next question" placeholder or the current results data.
-

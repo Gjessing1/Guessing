@@ -1,6 +1,18 @@
 const socket = io();
 
 const OPTION_COLORS = ['bg-red-600', 'bg-blue-600', 'bg-yellow-500', 'bg-green-600'];
+
+const hostReconnectBanner = document.getElementById('host-reconnect-banner');
+
+// Re-register with the server after any socket reconnect
+socket.on('connect', () => {
+  hostReconnectBanner.classList.add('hidden');
+  if (gamePin) socket.emit('HOST_REGISTER', { pin: gamePin });
+});
+
+socket.on('disconnect', () => {
+  if (gamePin) hostReconnectBanner.classList.remove('hidden');
+});
 const OPTION_BORDER  = ['border-red-400', 'border-blue-400', 'border-yellow-300', 'border-green-400'];
 const OPTION_HEX     = ['#dc2626', '#2563eb', '#ca8a04', '#16a34a'];
 const TIMER_CIRC     = 263.9; // 2π × r=42
