@@ -1,7 +1,7 @@
-# CONTROL TEST (intentionally NOT using the REGISTRY_TOKEN fix).
-# Pushes to the Forgejo registry using the automatic GITHUB_TOKEN to confirm
-# whether that token can write packages on this instance. Expectation per the
-# forgejo README: docker login succeeds but `docker push` 401s on blob upload.
+# Builds the image and pushes it to the Forgejo registry.
+# Auth: the automatic GITHUB_TOKEN only gets package *read* on this instance, so
+# pushes 401 on blob upload. Log in with a write:package PAT stored as the
+# REGISTRY_TOKEN repo secret instead (see the forgejo README).
 name: docker
 
 on:
@@ -17,12 +17,12 @@ jobs:
     runs-on: docker
     permissions:
       contents: read
-      packages: write # the thing under test: is this enough for the auto token?
+      packages: write # not sufficient alone on this instance; push uses REGISTRY_TOKEN
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to the Forgejo registry (auto GITHUB_TOKEN)
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login git.gjessing.io -u "${{ github.actor }}" --password-stdin
+      - name: Log in to the Forgejo registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login git.gjessing.io -u gjessing1 --password-stdin
 
       - name: Build and push
         run: |
