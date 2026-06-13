@@ -99,6 +99,9 @@
 - **Code Style:**
   - Conventional Commits (`feat:`, `fix:`, etc.). First line < 72 characters.
   - No AI attribution in code or commits.
+- **Git Remotes:**
+  - Two remotes exist: `origin` (GitHub) and `forgejo` (git.gjessing.io).
+  - Always push to BOTH on every push: `git push origin main && git push forgejo main`.
 
 ## Roadmap
 
