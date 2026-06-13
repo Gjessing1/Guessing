@@ -102,44 +102,6 @@
 
 ## Roadmap
 
-### Phase 13: Power Features ✅
-- [x] Team mode — players choose a team colour at avatar screen; team ring shown in host lobby; team leaderboard on final podium
-- [x] Question time-per-question stats in game results (average answer time shown in admin results detail)
-- [x] Admin: preview a quiz before going live — full-screen walkthrough with correct answer highlighted, arrow-key navigation
-- [x] Sound effects pack toggle — Default / Silent / Party (party: 10 s tick-tock, confetti on every result)
-
-## Phase 14: improvements and stability
-- [x] When all players have answerd the timer should go to 0 instead of waiting the full time
-- [x] Text response questions should be option to choose in quiz editor if should show player name when submitted, default is yes
-- [x] Drop the pin question submitted without dropping a pin, you should place it and maybe add an actual submit button after placement?
-- [x] Explain clearly what lightning round is when creating the lightning round question.
-- [x] True false should be able to have other naming options, but keep true false as default.
-- [x] Host menu should have small text explaining the sound modes, showing only the explanation of the one currently active and what it does. Silent is self explainatory
-- [x] If host disable team mode it should dissapear from the the player screen as an option to pick team.
-- [x] Default sound mode should also have cheering on final scoreboard and confetti.
-
-- [x] Lightning Round (sometimes tied to fast-paced game modes like “Double Points” or rapid-fire questions) is basically a segment where speed matters even more than usual. This is not correctly implemented, fix it and also fix the explanation modal in admin editor. Also make a screen flash with lightning round 1,5x or 2x speed points amplifier before the question, this makes sure everyone understands the mechanics.
-- [x] Light mode and dark mode if not already implemented (selectable only by host)
-- [x] Make sure drop the pin has required a image for the question when editing the quiz, only the image will show for the players and they can only place the pin within the image, small confirmation box beneath image to make sure they dont accidently place and submit.
-- [x] Drop-pin timer fix — questions were saved with timeLimit 0, causing host to fire results after 1 s. Fixed admin editor to show/save a real timer (default 30 s) and added server fallback for existing quizzes.
-- [x] Lightning intro extended from 2 s to 3.5 s.
-
-## Phase 15: New question types + polish
-
-## Phase 15 part 1
-### Known issues to fix
-- [x] **Drop-pin coordinate mismatch** — Player dp-area is `flex-1` (variable height), host results uses `aspect-ratio: 16/9`. With `object-cover` both crop the image differently, so pins appear in slightly wrong positions on the host results map. Fix: constrain player dp-area to the same 16:9 ratio (with letter-boxing), so both sides treat (x, y) identically.
-- [x] **Reconnect during results phase** — If a player reconnects while the host is on a results screen (`questionPhase === 'results'`), they get `GAME_STATE_CHANGE { status: 'playing' }` but no content — blank screen until the next question. Send a "waiting for next question" placeholder or the current results data.
-
-## Phase 15 part 2
-### Polish & engagement
-- [x] **Streak bonus** — 3+ consecutive correct answers awards a small bonus (e.g. +100 pts, shown with a 🔥 banner). Makes staying focused the whole game rewarding.
-- [x] **"Fastest correct" callout** — On the results screen, show which player answered correctly first (name + emoji). Already have answerTimes on the server, just need to surface it.
-- [x] **Admin: duplicate question** — One-click copy of an existing question card. Useful for creating similar questions without re-filling every field.
-- [x] **Admin: drag-to-reorder questions** — Replace the current up/down buttons with drag handles (HTML5 drag-and-drop or a touch-friendly library).
-- [x] **Make the final podium slide shown on host screen feel like a stage**, add an actual podium with animation when shown, showing the avatars for each of the top three places gold, silver, bronze. Keep confetti and sound as it is. If you’re doing teams it should  slightly tint the background to match the winning team color. Think more “award ceremony” than “kids game.” as target audience is adults. Soft shadow under podium blocks
-Slight bounce animation when ranks appear Glow intensity proportional to rank (gold brightest) Clear hierarchy (1st pops instantly)
-
 ## Phase 15 part 3
 
 ### Proposed new question type: Estimation

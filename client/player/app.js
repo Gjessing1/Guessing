@@ -361,7 +361,29 @@ socket.on('LIGHTNING_INTRO', () => {
   // QUESTION_DATA arrives 2 s later from the server
 });
 
-socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion }) => {
+// Wall-clock countdown shared by all question types. Mobile browsers throttle
+// setInterval when the screen locks — counting against a deadline means the
+// display snaps back to the right value the moment the tab wakes up.
+function startCountdown(timeLimit, numberEl, barEl, onZero) {
+  clearInterval(timerInterval);
+  let deadline = Date.now() + timeLimit * 1000;
+  barEl.style.transition = 'none';
+  barEl.style.width = '100%';
+  numberEl.textContent = timeLimit;
+  timerInterval = setInterval(() => {
+    deadline = Math.min(deadline, Date.now() + playerTimerCap * 1000);
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    numberEl.textContent = remaining;
+    barEl.style.transition = 'width 0.25s linear';
+    barEl.style.width = Math.max(0, (remaining / timeLimit) * 100) + '%';
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      if (onZero) onZero();
+    }
+  }, 250);
+}
+
+socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, timeLimit, image, type, showQuestion, alreadyAnswered }) => {
   reconnectOverlay.classList.add('hidden');
   clearInterval(timerInterval);
   playerAnswer      = null;
@@ -369,6 +391,14 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   currentOptions    = options;
   lastAnswerResult  = { correct: false, scoreDelta: 0, totalScore: 0, didAnswer: false };
   playerTimerCap    = Infinity; // reset cap for each question
+
+  // Reconnected mid-question after answering: block resubmission and wait.
+  // The server replays ANSWER_RESULT right after this, restoring the outcome.
+  if (alreadyAnswered && type !== 'slide') {
+    playerAnswer = -1;
+    showScreen('answered');
+    return;
+  }
 
   // Slide: just show content, no timer or answers
   if (type === 'slide') {
@@ -385,18 +415,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     document.getElementById('wc-number').textContent = `Question ${questionNumber} of ${totalQuestions} ☁️`;
     document.getElementById('wc-text').textContent = text;
     document.getElementById('wc-input').value = '';
-    document.getElementById('wc-timer').textContent = timeLimit;
-    const wcBar = document.getElementById('wc-timer-bar');
-    wcBar.style.transition = 'none'; wcBar.style.width = '100%';
-    let wcRemaining = timeLimit;
-    timerInterval = setInterval(() => {
-      wcRemaining--;
-      wcRemaining = Math.min(wcRemaining, playerTimerCap);
-      document.getElementById('wc-timer').textContent = wcRemaining;
-      const pct = Math.max(0, (wcRemaining / timeLimit) * 100);
-      wcBar.style.transition = 'width 1s linear'; wcBar.style.width = pct + '%';
-      if (wcRemaining <= 0) clearInterval(timerInterval);
-    }, 1000);
+    startCountdown(timeLimit, document.getElementById('wc-timer'), document.getElementById('wc-timer-bar'));
     showScreen('wordcloud');
     return;
   }
@@ -406,18 +425,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     document.getElementById('ot-number').textContent = `Question ${questionNumber} of ${totalQuestions} 📝`;
     document.getElementById('ot-text').textContent = text;
     document.getElementById('ot-input').value = '';
-    document.getElementById('ot-timer').textContent = timeLimit;
-    const otBar = document.getElementById('ot-timer-bar');
-    otBar.style.transition = 'none'; otBar.style.width = '100%';
-    let otRemaining = timeLimit;
-    timerInterval = setInterval(() => {
-      otRemaining--;
-      otRemaining = Math.min(otRemaining, playerTimerCap);
-      document.getElementById('ot-timer').textContent = otRemaining;
-      const pct = Math.max(0, (otRemaining / timeLimit) * 100);
-      otBar.style.transition = 'width 1s linear'; otBar.style.width = pct + '%';
-      if (otRemaining <= 0) clearInterval(timerInterval);
-    }, 1000);
+    startCountdown(timeLimit, document.getElementById('ot-timer'), document.getElementById('ot-timer-bar'));
     showScreen('opentext');
     return;
   }
@@ -426,7 +434,6 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   if (type === 'droppin') {
     document.getElementById('dp-number').textContent = `Question ${questionNumber} of ${totalQuestions} 📍`;
     document.getElementById('dp-text').textContent = text;
-    document.getElementById('dp-timer').textContent = timeLimit;
     const dpImg = document.getElementById('dp-image');
     if (image) { dpImg.src = image; dpImg.classList.remove('hidden'); }
     else { dpImg.classList.add('hidden'); dpImg.src = ''; }
@@ -435,21 +442,10 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     const dpConfirm = document.getElementById('dp-confirm');
     dpConfirm.disabled = true;
     dpConfirm.textContent = 'Tap the image to place your pin';
-    const dpBar = document.getElementById('dp-timer-bar');
-    dpBar.style.transition = 'none'; dpBar.style.width = '100%';
-    let dpRemaining = timeLimit;
-    timerInterval = setInterval(() => {
-      dpRemaining--;
-      dpRemaining = Math.min(dpRemaining, playerTimerCap);
-      document.getElementById('dp-timer').textContent = dpRemaining;
-      const pct = Math.max(0, (dpRemaining / timeLimit) * 100);
-      dpBar.style.transition = 'width 1s linear'; dpBar.style.width = pct + '%';
-      if (dpRemaining <= 0) {
-        clearInterval(timerInterval);
-        // Auto-submit placed-but-unconfirmed pin so it isn't lost
-        if (pendingCoords && playerAnswer === null) dpConfirm.click();
-      }
-    }, 1000);
+    startCountdown(timeLimit, document.getElementById('dp-timer'), document.getElementById('dp-timer-bar'), () => {
+      // Auto-submit placed-but-unconfirmed pin so it isn't lost
+      if (pendingCoords && playerAnswer === null) dpConfirm.click();
+    });
     showScreen('droppin');
     return;
   }
@@ -459,7 +455,6 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
   document.getElementById('q-number').textContent =
     `Question ${questionNumber} of ${totalQuestions}${isLightning ? ' ⚡' : ''}`;
   document.getElementById('q-text').textContent = text;
-  document.getElementById('q-timer-display').textContent = timeLimit;
 
   const img = document.getElementById('q-image');
   if (image) { img.src = image; img.classList.remove('hidden'); }
@@ -491,22 +486,7 @@ socket.on('QUESTION_DATA', ({ questionNumber, totalQuestions, text, options, tim
     grid.appendChild(btn);
   });
 
-  // Countdown timer bar
-  const bar = document.getElementById('q-timer-bar');
-  bar.style.transition = 'none';
-  bar.style.width = '100%';
-  let remaining = timeLimit;
-
-  timerInterval = setInterval(() => {
-    remaining--;
-    remaining = Math.min(remaining, playerTimerCap);
-    document.getElementById('q-timer-display').textContent = remaining;
-    const pct = Math.max(0, (remaining / timeLimit) * 100);
-    bar.style.transition = 'width 1s linear';
-    bar.style.width = pct + '%';
-    if (remaining <= 0) clearInterval(timerInterval);
-  }, 1000);
-
+  startCountdown(timeLimit, document.getElementById('q-timer-display'), document.getElementById('q-timer-bar'));
   showScreen('question');
 });
 

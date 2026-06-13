@@ -129,7 +129,7 @@ function showScreen(name) {
       quizzes.forEach(({ id, title, questionCount }) => {
         const card = document.createElement('button');
         card.className = 'w-full text-left bg-gray-800 hover:bg-gray-700 border-2 border-transparent rounded-xl px-4 py-3 transition-colors';
-        card.innerHTML = `<p class="font-bold">${title}</p><p class="text-gray-400 text-xs">${questionCount} question${questionCount !== 1 ? 's' : ''}</p>`;
+        card.innerHTML = `<p class="font-bold">${escapeHtml(title)}</p><p class="text-gray-400 text-xs">${questionCount} question${questionCount !== 1 ? 's' : ''}</p>`;
         card.addEventListener('click', () => {
           cardsEl.querySelectorAll('button').forEach(b => {
             b.classList.remove('border-indigo-500', 'bg-indigo-900');
@@ -202,7 +202,7 @@ socket.on('PLAYER_LIST_UPDATE', (players) => {
     card.innerHTML = `
       <div class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
            style="background-color:${color};${ring}">${emoji}</div>
-      <span class="text-xs text-gray-300 truncate w-full text-center">${nickname}</span>
+      <span class="text-xs text-gray-300 truncate w-full text-center">${escapeHtml(nickname)}</span>
     `;
     grid.appendChild(card);
   });
@@ -323,32 +323,33 @@ socket.on('ANSWER_COUNT', ({ count, total }) => {
   document.getElementById('answer-bar').style.width = total > 0 ? `${(count / total) * 100}%` : '0%';
 });
 
+// Visual countdown only — the server ends the question authoritatively, so a
+// throttled/background host tab can no longer stall or double-advance the game.
+// Wall-clock based so the display catches up instantly after throttling.
+let timerDeadline = 0;
 function startTimer(seconds) {
   clearInterval(timerInterval);
   timerTotal = seconds;
   timerCapOverride = Infinity; // reset cap for each new question
-  let remaining = seconds;
+  timerDeadline = Date.now() + seconds * 1000;
   const circle = document.getElementById('timer-circle');
   const number = document.getElementById('timer-number');
+  let prev = seconds + 1;
 
   function tick() {
+    timerDeadline = Math.min(timerDeadline, Date.now() + timerCapOverride * 1000);
+    const remaining = Math.max(0, Math.ceil((timerDeadline - Date.now()) / 1000));
     number.textContent = remaining;
-    const offset = TIMER_CIRC * (1 - remaining / timerTotal);
-    circle.style.strokeDashoffset = offset;
+    circle.style.strokeDashoffset = TIMER_CIRC * (1 - remaining / timerTotal);
     circle.style.stroke = remaining <= 5 ? '#ef4444' : '#6366f1';
+    const tickAt = soundMode === 'party' ? 10 : 5;
+    if (prev > tickAt && remaining <= tickAt && remaining > 0) AudioManager.play('tick-tock');
+    prev = remaining;
+    if (remaining <= 0) clearInterval(timerInterval);
   }
 
   tick();
-  timerInterval = setInterval(() => {
-    remaining--;
-    remaining = Math.min(remaining, timerCapOverride);
-    tick();
-    if (remaining === (soundMode === 'party' ? 10 : 5)) AudioManager.play('tick-tock');
-    if (remaining <= 0) {
-      clearInterval(timerInterval);
-      socket.emit('NEXT_QUESTION', { pin: gamePin });
-    }
-  }, 1000);
+  timerInterval = setInterval(tick, 250);
 }
 
 socket.on('ALL_ANSWERED', () => {
@@ -426,7 +427,7 @@ socket.on('RESULTS_BREAKDOWN', ({ correctIndex, answerCounts, players, isLast, f
       <div class="w-9 h-9 rounded-full flex items-center justify-center text-xl flex-shrink-0"
            style="background-color:${color}">${emoji}</div>
       <div class="min-w-0">
-        <p class="font-bold text-sm truncate">${nickname}</p>
+        <p class="font-bold text-sm truncate">${escapeHtml(nickname)}</p>
         <p class="text-gray-400 text-xs">${score.toLocaleString()} pts</p>
       </div>
     `;

@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
-const DB_PATH = path.join(__dirname, '../../data/quizzes.json');
+// DATA_DIR override lets tests point at a temp directory
+const DB_PATH = path.join(process.env.DATA_DIR || path.join(__dirname, '../../data'), 'quizzes.json');
 
 function read() {
   try {

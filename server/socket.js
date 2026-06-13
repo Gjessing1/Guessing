@@ -10,13 +10,43 @@ const hostGraceTimers = new Map();
 // socketId → timeoutId for lobby player disconnect grace period
 const playerGraceTimers = new Map();
 
+// Extra time after the displayed countdown before the server forces results,
+// so in-flight answers (auto-submitted pins, slow networks) still land.
+const TIMER_GRACE_MS = 800;
+
 function sanitize(str) {
   return String(str || '').replace(/<[^>]*>/g, '').trim().slice(0, 20);
+}
+
+function clearQuestionTimer(room) {
+  if (room.questionTimerId) clearTimeout(room.questionTimerId);
+  room.questionTimerId = null;
+  room.timerFireAt = null;
+}
+
+// Server-authoritative question end. The host's on-screen countdown is purely
+// visual — this timeout is what actually ends the question, so a throttled or
+// disconnected host tab can no longer stall the game. Re-arming only ever
+// shortens the deadline (ALL_ANSWERED / team TIMER_CAP), never extends it.
+function armQuestionTimer(io, room, pin, seconds) {
+  const fireAt = Date.now() + seconds * 1000 + TIMER_GRACE_MS;
+  if (room.timerFireAt && fireAt >= room.timerFireAt) return;
+  if (room.questionTimerId) clearTimeout(room.questionTimerId);
+  room.timerFireAt = fireAt;
+
+  const qIndex = room.currentQuestionIndex;
+  room.questionTimerId = setTimeout(() => {
+    const r = rm.getRoom(pin);
+    if (!r || r !== room) return;
+    if (room.questionPhase !== 'question' || room.currentQuestionIndex !== qIndex) return;
+    showResults(io, room, pin, false);
+  }, Math.max(0, fireAt - Date.now()));
 }
 
 // Advance room to the next question (or end game). Called from both normal flow
 // and skip flow so the logic lives in one place.
 function advanceRoom(io, room, pin) {
+  clearQuestionTimer(room);
   room.currentQuestionIndex++;
 
   if (room.currentQuestionIndex >= room.quiz.questions.length) {
@@ -53,36 +83,130 @@ function advanceRoom(io, room, pin) {
   const q = room.quiz.questions[room.currentQuestionIndex];
   const isSlide     = q.type === 'slide';
   const isLightning = q.type === 'lightning';
+  // Normalize: a missing/zero time limit would end the question instantly and
+  // produce NaN scores in calcScore — fall back to 30 s for answerable types.
+  const timeLimit = isSlide ? 0 : (q.timeLimit > 0 ? q.timeLimit : 30);
 
-  room.questionPhase = isSlide ? 'slide' : 'question';
+  room.questionPhase = isSlide ? 'slide' : (isLightning ? 'intro' : 'question');
   room.currentAnswers = new Map();
   room.answerTimes = new Map();
   room.teamsTriggered = new Set();
+  room.currentTimeLimit = timeLimit;
 
   const questionData = {
     questionNumber: room.currentQuestionIndex + 1,
     totalQuestions: room.quiz.questions.length,
     text: q.text,
     options: q.options || [],
-    timeLimit: q.timeLimit || (q.type === 'droppin' ? 30 : 0),
+    timeLimit,
     image: q.image || null,
     type: q.type || 'multiple',
     showQuestion: isSlide ? true : room.showQuestionOnPlayer === true,
   };
 
   if (isLightning) {
-    // Show a 3.5-second intro flash; questionStartTime is set AFTER so intro
-    // doesn't consume scoring time.
-    room.questionStartTime = Date.now() + 99999; // sentinel while intro plays
+    // Show a 3.5-second intro flash; phase stays 'intro' so answers can't be
+    // submitted (or scored off a bogus start time) until the question begins.
     io.to(pin).emit('LIGHTNING_INTRO');
     setTimeout(() => {
-      if (!rm.getRoom(pin)) return; // room may have been cleaned up
+      const r = rm.getRoom(pin);
+      if (!r || r !== room) return; // room may have been cleaned up
+      if (room.questionPhase !== 'intro') return;
+      room.questionPhase = 'question';
       room.questionStartTime = Date.now();
       io.to(pin).emit('QUESTION_DATA', questionData);
+      armQuestionTimer(io, room, pin, timeLimit);
     }, 3500);
   } else {
     room.questionStartTime = Date.now();
     io.to(pin).emit('QUESTION_DATA', questionData);
+    if (!isSlide) armQuestionTimer(io, room, pin, timeLimit);
+  }
+}
+
+// End the current question: record history, then either emit results to all
+// clients or (skip=true) advance straight to the next question.
+function showResults(io, room, pin, skip) {
+  clearQuestionTimer(room);
+  const q     = room.quiz.questions[room.currentQuestionIndex];
+  const qType = q.type || 'multiple';
+  const isLast = room.currentQuestionIndex === room.quiz.questions.length - 1;
+  room.questionPhase = 'results';
+  room.resultsShownAt = Date.now();
+
+  // Record to question history (needed for analytics regardless of skip)
+  const times = Array.from(room.answerTimes.values());
+  const avgAnswerTime = times.length > 0
+    ? Math.round(times.reduce((s, t) => s + t, 0) / times.length * 10) / 10
+    : null;
+
+  if (qType === 'wordcloud' || qType === 'opentext' || qType === 'droppin') {
+    room.questionHistory.push({
+      quizIndex: room.currentQuestionIndex,
+      answerCounts: [room.currentAnswers.size],
+      correctIndex: -1,
+      avgAnswerTime,
+    });
+  } else {
+    const answerCounts = rm.getAnswerCounts(room);
+    const correctIndex = qType === 'poll' ? -1 : q.correct;
+    room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex, avgAnswerTime });
+  }
+
+  if (skip) {
+    advanceRoom(io, room, pin);
+    return;
+  }
+
+  // Emit results to all clients
+  if (qType === 'wordcloud') {
+    const wordCounts = rm.getWordCounts(room);
+    io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
+  } else if (qType === 'opentext') {
+    const answers = rm.getTextAnswers(room);
+    io.to(pin).emit('OPENTEXT_RESULTS', { answers, isLast, showNames: q.showNames !== false });
+  } else if (qType === 'droppin') {
+    const pins = rm.getPinCoords(room);
+    io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
+  } else {
+    const h = room.questionHistory[room.questionHistory.length - 1];
+    let fastestCorrect = null;
+    if (h.correctIndex >= 0) {
+      let bestTime = Infinity;
+      for (const [sid, answer] of room.currentAnswers.entries()) {
+        if (answer === h.correctIndex) {
+          const t = room.answerTimes.get(sid);
+          if (t !== undefined && t < bestTime) {
+            bestTime = t;
+            const p = room.players.get(sid);
+            if (p) fastestCorrect = { nickname: p.nickname, emoji: p.emoji, color: p.color };
+          }
+        }
+      }
+    }
+    io.to(pin).emit('RESULTS_BREAKDOWN', {
+      correctIndex: h.correctIndex,
+      answerCounts: h.answerCounts,
+      players: rm.getLeaderboard(room),
+      isLast,
+      fastestCorrect,
+    });
+  }
+}
+
+// Emit the live answered-count to the host. Total counts connected players
+// only, so a dropped phone doesn't block the "all answered" early finish.
+function emitAnswerCount(io, room, pin) {
+  if (room.questionPhase !== 'question') return;
+  const count = rm.getAnswerCount(room);
+  const total = rm.getConnectedCount(room);
+  if (room.hostSocketId) {
+    io.to(room.hostSocketId).emit('ANSWER_COUNT', { count, total });
+  }
+  // When every connected player has answered, cap the timer to 1 s
+  if (count >= total && total > 0) {
+    io.to(pin).emit('ALL_ANSWERED');
+    armQuestionTimer(io, room, pin, 1);
   }
 }
 
@@ -112,13 +236,13 @@ function registerSocketHandlers(io) {
             totalQuestions: room.quiz.questions.length,
             text: q.text,
             options: q.options || [],
-            timeLimit: Math.max(1, (q.timeLimit || 30) - elapsed),
+            timeLimit: Math.max(1, (room.currentTimeLimit || q.timeLimit || 30) - elapsed),
             image: q.image || null,
             type: q.type || 'multiple',
           });
           socket.emit('ANSWER_COUNT', {
             count: rm.getAnswerCount(room),
-            total: room.players.size,
+            total: rm.getConnectedCount(room),
           });
         }
       }
@@ -157,19 +281,32 @@ function registerSocketHandlers(io) {
             if (room.questionPhase === 'question') {
               const q = room.quiz.questions[room.currentQuestionIndex];
               const elapsed = Math.floor((Date.now() - room.questionStartTime) / 1000);
+              const alreadyAnswered = room.currentAnswers.has(socket.id);
               socket.emit('QUESTION_DATA', {
                 questionNumber: room.currentQuestionIndex + 1,
                 totalQuestions: room.quiz.questions.length,
                 text: q.text,
-                options: q.options,
-                timeLimit: Math.max(1, q.timeLimit - elapsed),
+                options: q.options || [],
+                timeLimit: Math.max(1, (room.currentTimeLimit || q.timeLimit || 30) - elapsed),
                 image: q.image || null,
                 type: q.type || 'multiple',
                 showQuestion: room.showQuestionOnPlayer === true,
+                alreadyAnswered,
               });
+              if (alreadyAnswered) {
+                const p = room.players.get(socket.id);
+                socket.emit('ANSWER_RESULT', {
+                  correct: p.lastCorrect ?? null,
+                  scoreDelta: p.lastDelta || 0,
+                  totalScore: p.score,
+                  streak: p.streak || 0,
+                });
+              }
             } else if (room.questionPhase === 'results') {
               socket.emit('RECONNECT_WAITING');
             }
+            // Reconnect changes the connected total — refresh the host count
+            emitAnswerCount(io, room, pin);
           }
           return;
         }
@@ -219,6 +356,7 @@ function registerSocketHandlers(io) {
     socket.on('GAME_START', ({ pin, quizId, showQuestionOnPlayer }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
+      if (room.status !== 'lobby') return; // guard against duplicate starts
       if (room.players.size === 0) return socket.emit('ERROR', { message: 'No players in room' });
 
       const quiz = quizStore.get(quizId);
@@ -233,78 +371,18 @@ function registerSocketHandlers(io) {
     socket.on('NEXT_QUESTION', ({ pin, skip }) => {
       const room = rm.getRoom(pin);
       if (!room || room.hostSocketId !== socket.id) return;
+      if (room.questionPhase === 'intro') return; // lightning intro playing
 
       const curQ = room.currentQuestionIndex >= 0
         ? room.quiz.questions[room.currentQuestionIndex] : null;
       const onSlide = curQ?.type === 'slide';
 
       if (room.questionPhase === null || room.questionPhase === 'results' || onSlide) {
+        // Debounce: a double-click right as results appear must not skip them
+        if (room.questionPhase === 'results' && Date.now() - room.resultsShownAt < 500) return;
         advanceRoom(io, room, pin);
-
       } else if (room.questionPhase === 'question') {
-        const q     = room.quiz.questions[room.currentQuestionIndex];
-        const qType = q.type || 'multiple';
-        const isLast = room.currentQuestionIndex === room.quiz.questions.length - 1;
-        room.questionPhase = 'results';
-
-        // Record to question history (needed for analytics regardless of skip)
-        const times = Array.from(room.answerTimes.values());
-        const avgAnswerTime = times.length > 0
-          ? Math.round(times.reduce((s, t) => s + t, 0) / times.length * 10) / 10
-          : null;
-
-        if (qType === 'wordcloud' || qType === 'opentext' || qType === 'droppin') {
-          room.questionHistory.push({
-            quizIndex: room.currentQuestionIndex,
-            answerCounts: [room.currentAnswers.size],
-            correctIndex: -1,
-            avgAnswerTime,
-          });
-        } else {
-          const answerCounts = rm.getAnswerCounts(room);
-          const correctIndex = qType === 'poll' ? -1 : q.correct;
-          room.questionHistory.push({ quizIndex: room.currentQuestionIndex, answerCounts, correctIndex, avgAnswerTime });
-        }
-
-        if (skip) {
-          advanceRoom(io, room, pin);
-          return;
-        }
-
-        // Emit results to all clients
-        if (qType === 'wordcloud') {
-          const wordCounts = rm.getWordCounts(room);
-          io.to(pin).emit('WORDCLOUD_RESULTS', { wordCounts, isLast });
-        } else if (qType === 'opentext') {
-          const answers = rm.getTextAnswers(room);
-          io.to(pin).emit('OPENTEXT_RESULTS', { answers, isLast, showNames: q.showNames !== false });
-        } else if (qType === 'droppin') {
-          const pins = rm.getPinCoords(room);
-          io.to(pin).emit('DROPPIN_RESULTS', { pins, image: q.image || null, isLast });
-        } else {
-          const h = room.questionHistory[room.questionHistory.length - 1];
-          let fastestCorrect = null;
-          if (h.correctIndex >= 0) {
-            let bestTime = Infinity;
-            for (const [sid, answer] of room.currentAnswers.entries()) {
-              if (answer === h.correctIndex) {
-                const t = room.answerTimes.get(sid);
-                if (t !== undefined && t < bestTime) {
-                  bestTime = t;
-                  const p = room.players.get(sid);
-                  if (p) fastestCorrect = { nickname: p.nickname, emoji: p.emoji, color: p.color };
-                }
-              }
-            }
-          }
-          io.to(pin).emit('RESULTS_BREAKDOWN', {
-            correctIndex: h.correctIndex,
-            answerCounts: h.answerCounts,
-            players: rm.getLeaderboard(room),
-            isLast,
-            fastestCorrect,
-          });
-        }
+        showResults(io, room, pin, skip === true);
       }
     });
 
@@ -348,22 +426,17 @@ function registerSocketHandlers(io) {
         }
       }
 
-      const totalScore = room.players.get(socket.id).score;
-      socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore, streak });
+      // Remember the outcome so a reconnect can replay it faithfully
+      const player = room.players.get(socket.id);
+      player.lastCorrect = correct;
+      player.lastDelta   = scoreDelta;
 
-      const count = rm.getAnswerCount(room);
-      const total = room.players.size;
-      if (room.hostSocketId) {
-        io.to(room.hostSocketId).emit('ANSWER_COUNT', { count, total });
-      }
-      // When every player has answered, cap the timer to 1 s
-      if (count >= total && total > 0) {
-        io.to(pin).emit('ALL_ANSWERED');
-      }
+      socket.emit('ANSWER_RESULT', { correct, scoreDelta, totalScore: player.score, streak });
+      emitAnswerCount(io, room, pin);
 
       // Team mode: when the first team completes, cap remaining time to 8 s
-      if (room.teamsEnabled) {
-        const playerTeam = room.players.get(socket.id)?.team;
+      if (room.teamsEnabled && room.questionPhase === 'question') {
+        const playerTeam = player.team;
         if (playerTeam && !room.teamsTriggered.has(playerTeam)) {
           let allAnswered = true;
           let teamSize = 0;
@@ -376,6 +449,9 @@ function registerSocketHandlers(io) {
             room.teamsTriggered.add(playerTeam);
             const teamName = room.teamNames[playerTeam] || playerTeam;
             io.to(pin).emit('TIMER_CAP', { seconds: 8, teamName });
+            const elapsed = (Date.now() - room.questionStartTime) / 1000;
+            const remaining = Math.max(1, (room.currentTimeLimit || 30) - elapsed);
+            armQuestionTimer(io, room, pin, Math.min(remaining, 8));
           }
         }
       }
@@ -396,6 +472,7 @@ function registerSocketHandlers(io) {
         hostRoom.hostSocketId = null;
         const timerId = setTimeout(() => {
           io.to(hostRoom.pin).emit('GAME_STATE_CHANGE', { status: 'ended', reason: 'host_disconnected' });
+          clearQuestionTimer(hostRoom);
           rm.removeRoom(hostRoom.pin);
           hostGraceTimers.delete(hostRoom.pin);
         }, 30000);
@@ -405,6 +482,9 @@ function registerSocketHandlers(io) {
 
       const playerRoom = rm.getRoomByPlayerSocket(socket.id);
       if (playerRoom) {
+        const player = playerRoom.players.get(socket.id);
+        if (player) player.connected = false;
+
         if (playerRoom.status === 'lobby') {
           // Short grace period so brief network blips don't drop the player from the lobby
           const sid = socket.id;
@@ -418,8 +498,11 @@ function registerSocketHandlers(io) {
             }
           }, 8000);
           playerGraceTimers.set(sid, tid);
+        } else if (playerRoom.status === 'playing') {
+          // Mid-game: keep player data so they can reconnect, but update the
+          // connected total so one dropped phone doesn't stall the question.
+          emitAnswerCount(io, playerRoom, playerRoom.pin);
         }
-        // Mid-game: keep player data so they can reconnect
       }
     });
   });

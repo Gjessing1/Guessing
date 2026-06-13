@@ -25,6 +25,10 @@ function createRoom() {
     answerTimes: new Map(),    // socketId → seconds elapsed when answered
     teamsTriggered: new Set(), // teams that have already triggered the timer cap this question
     questionStartTime: null,
+    currentTimeLimit: null,    // normalized time limit (seconds) for the active question
+    questionTimerId: null,     // server-side timeout that ends the question
+    timerFireAt: null,         // when that timeout fires (ms epoch) — used to only ever shorten
+    resultsShownAt: 0,         // debounce double NEXT_QUESTION right after results
     questionHistory: [],       // [{ quizIndex, answerCounts, correctIndex, avgAnswerTime }]
     createdAt: Date.now(),
   });
@@ -52,7 +56,7 @@ function getRoomByPlayerSocket(socketId) {
 function addPlayer(pin, socketId, nickname, emoji, color, token = null, team = null) {
   const room = rooms.get(pin);
   if (!room) return null;
-  room.players.set(socketId, { nickname, emoji, color, score: 0, streak: 0, token, team });
+  room.players.set(socketId, { nickname, emoji, color, score: 0, streak: 0, token, team, connected: true });
   if (token) room.tokenIndex.set(token, socketId);
   return room;
 }
@@ -68,8 +72,18 @@ function reconnectPlayer(room, oldSocketId, newSocketId, nickname, emoji, color)
   const player = room.players.get(oldSocketId);
   if (!player) return false;
   room.players.delete(oldSocketId);
-  room.players.set(newSocketId, { ...player, nickname, emoji, color });
+  room.players.set(newSocketId, { ...player, nickname, emoji, color, connected: true });
   if (player.token) room.tokenIndex.set(player.token, newSocketId);
+  // Migrate this question's answer to the new socket id — otherwise the
+  // player could answer again after a refresh and be scored twice.
+  if (room.currentAnswers.has(oldSocketId)) {
+    room.currentAnswers.set(newSocketId, room.currentAnswers.get(oldSocketId));
+    room.currentAnswers.delete(oldSocketId);
+  }
+  if (room.answerTimes.has(oldSocketId)) {
+    room.answerTimes.set(newSocketId, room.answerTimes.get(oldSocketId));
+    room.answerTimes.delete(oldSocketId);
+  }
   return true;
 }
 
@@ -83,6 +97,8 @@ function removePlayer(socketId) {
 }
 
 function removeRoom(pin) {
+  const room = rooms.get(pin);
+  if (room?.questionTimerId) clearTimeout(room.questionTimerId);
   rooms.delete(pin);
 }
 
@@ -90,7 +106,7 @@ function removeRoom(pin) {
 function pruneStaleRooms() {
   const cutoff = Date.now() - 3 * 60 * 60 * 1000;
   for (const [pin, room] of rooms.entries()) {
-    if (room.createdAt < cutoff) rooms.delete(pin);
+    if (room.createdAt < cutoff) removeRoom(pin);
   }
 }
 
@@ -161,6 +177,14 @@ function getAnswerCount(room) {
   return room.currentAnswers.size;
 }
 
+function getConnectedCount(room) {
+  let count = 0;
+  for (const player of room.players.values()) {
+    if (player.connected !== false) count++;
+  }
+  return count;
+}
+
 function getPlayerList(room) {
   return Array.from(room.players.values()).map(({ nickname, emoji, color, score, team }) => ({
     nickname, emoji, color, score, team: team || null,
@@ -176,8 +200,10 @@ const TIME_BONUS_MAX = 500;
 
 function calcScore(room) {
   const q = room.quiz.questions[room.currentQuestionIndex];
-  const elapsed  = Math.min(Math.max(0, Date.now() - room.questionStartTime), q.timeLimit * 1000);
-  const fraction = 1 - elapsed / (q.timeLimit * 1000);
+  // Guard against questions saved with timeLimit 0/undefined (would yield NaN)
+  const limitMs  = (room.currentTimeLimit > 0 ? room.currentTimeLimit : (q.timeLimit > 0 ? q.timeLimit : 30)) * 1000;
+  const elapsed  = Math.min(Math.max(0, Date.now() - room.questionStartTime), limitMs);
+  const fraction = 1 - elapsed / limitMs;
   const base = BASE_SCORE + Math.round(TIME_BONUS_MAX * fraction);
   // Lightning: 2× multiplier — speed matters even more (range: 1000–2000 pts)
   return q.type === 'lightning' ? Math.round(base * 2) : base;
@@ -212,6 +238,7 @@ module.exports = {
   recordAnswer,
   getAnswerCounts,
   getAnswerCount,
+  getConnectedCount,
   getTeamCount,
   getWordCounts,
   getTextAnswers,
