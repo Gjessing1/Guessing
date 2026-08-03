@@ -38,7 +38,7 @@
   - `/mnt/data/guessing/quiz` → `/app/data` (quiz JSON)
   - `/mnt/data/guessing/images` → `/app/public/assets/images` (uploaded images)
 - **Image build:** Pushing to `main` triggers a Forgejo Actions build that pushes `git.gjessing.io/gjessing1/guessing:latest` to the Forgejo registry
-- **Deploy:** Automatic on push to `main` — the `deploy` job in `.forgejo/workflows/docker.yml` runs `docker compose pull && docker compose up -d --remove-orphans` on the host (pulling the git.gjessing.io image) after a successful build
+- **Deploy:** Automatic on push to `main` — the `build-and-deploy` job in `.forgejo/workflows/docker.yml` runs `docker compose pull && docker compose up -d --remove-orphans` on the host (pulling the git.gjessing.io image) as its last steps, then verifies the container came back on the image just built. Deploy runs inside the build job on purpose: the instance has one runner with capacity 1 shared by every repo, so a separate `needs:` job queues for a second turn and gets auto-cancelled if a new commit lands during the wait, silently skipping the deploy
 - **Manual deploy (fallback):** `docker compose pull && docker compose up -d`
 
 ## Core Features (Implemented)
