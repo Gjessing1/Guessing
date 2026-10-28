@@ -25,7 +25,7 @@ jobs:
       packages: write # not sufficient alone on this instance; push uses REGISTRY_TOKEN
     env:
       # Deploy project (compose file + .env), bind-mounted into the job by the runner.
-      DEPLOY_DIR: /home/gjessing/docker/guessing
+      DEPLOY_DIR: /home/gjessing/docker/Productivity/guessing
     steps:
       - uses: actions/checkout@v4
 
